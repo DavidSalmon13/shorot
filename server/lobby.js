@@ -18,6 +18,7 @@ const {
   setAccountSticker,
   playerCardForUser,
   isBanned,
+  linkDeviceToUser,
 } = require('./accounts');
 const stats = require('./stats');
 const { logActivity } = require('./activity');
@@ -464,6 +465,11 @@ function registerLobbyHandlers(socket) {
     // once linked to an account - so signing out makes this phone a guest again.
     const user = await userFromSocket(socket);
     const userId = user ? String(user.id) : null;
+    // Self-heal the device->account link: a signed-in player whose clientId drifted after
+    // sign-in (e.g. iOS clearing localStorage) would otherwise record games as an unlinked
+    // guest, freezing their account's history. Re-link this device if it isn't claimed yet.
+    // Fire-and-forget: it never throws and must not delay the join.
+    if (userId) linkDeviceToUser(userId, clientId);
     // A signed-in account's sticker wins over whatever this device last had locally -
     // see "Sticker unification" in docs/specs/account-page-specs.md.
     const rawSticker = (user && user.sticker) || (data && data.sticker);

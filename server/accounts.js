@@ -159,6 +159,26 @@ async function claimClientId(client, userId, clientId) {
 }
 
 /**
+ * Attaches this browser's device (clientId) to the signed-in user if it isn't already
+ * linked to an account - the same claim claimClientId() makes at Google sign-in, but run
+ * on every authenticated join. A device's clientId can drift after sign-in (e.g. iOS
+ * clearing localStorage under ITP generates a fresh one), and since the login cookie
+ * survives, the player keeps showing as signed in while their new device records games as
+ * an unlinked guest - freezing their account's history. Re-linking on join self-heals
+ * that. A device already linked to a different account is left untouched (ON CONFLICT ...
+ * WHERE user_id IS NULL). No-op without a userId, clientId, or database; never throws.
+ */
+async function linkDeviceToUser(userId, clientId) {
+  const id = cleanClientId(clientId);
+  if (!userId || !id || !db.isEnabled()) return;
+  try {
+    await claimClientId(db, userId, id);
+  } catch (err) {
+    console.error('Device link-on-join failed:', err.message);
+  }
+}
+
+/**
  * Whose data a query covers, as a WHERE clause on `players p`: a signed-in user spans
  * every device they've claimed; a guest is just one browser.
  */
@@ -766,4 +786,5 @@ module.exports = {
   isBanned,
   deleteUser,
   userFromRequest,
+  linkDeviceToUser,
 };
