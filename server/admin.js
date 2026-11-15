@@ -277,14 +277,28 @@ function registerAdminRoutes(app, { ctx }) {
         WHERE user_id = $1 ORDER BY last_seen DESC`,
       [id]
     );
+    // `place`/`field` = where this player finished and how many were in the game.
+    // Ranking matches playerCard() (server/accounts.js): by details->>'place' when both
+    // rows have one (10 Seconds), else by (won, points). Standard competition ranking,
+    // so ties share the lower number. `field` counts everyone, so "2nd of 5" reads right.
     const games = await db.query(
-      `SELECT g.id, g.game_type, g.ended_at, gp.name_used, gp.won, gp.points, gp.role, gp.team
+      `SELECT g.id, g.game_type, g.ended_at, gp.name_used, gp.won, gp.points, gp.role, gp.team,
+              1 + (
+                SELECT count(*) FROM game_participants t
+                 WHERE t.game_id = gp.game_id AND t.player_id <> gp.player_id
+                   AND CASE
+                         WHEN gp.details->>'place' IS NOT NULL AND t.details->>'place' IS NOT NULL
+                           THEN (t.details->>'place')::numeric < (gp.details->>'place')::numeric
+                         ELSE (coalesce(t.won, false), t.points) > (coalesce(gp.won, false), gp.points)
+                       END
+              )::int AS place,
+              (SELECT count(*) FROM game_participants t2 WHERE t2.game_id = gp.game_id)::int AS field
          FROM game_participants gp
          JOIN players p ON p.id = gp.player_id
          JOIN games g ON g.id = gp.game_id
         WHERE p.user_id = $1
         ORDER BY g.ended_at DESC
-        LIMIT 30`,
+        LIMIT 500`,
       [id]
     );
     const badges = await db.query(

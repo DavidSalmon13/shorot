@@ -258,6 +258,13 @@
       })[c]);
     }
     const gameName = (id) => GAME_NAMES[id] || id || '';
+    // 1 -> "1st", 2 -> "2nd", 11 -> "11th". Used for finishing place in match history.
+    function ordinal(n) {
+      if (!Number.isFinite(n) || n < 1) return '—';
+      const t = n % 100;
+      const suffix = t >= 11 && t <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th';
+      return `${n}${suffix}`;
+    }
 
     function ago(when) {
       if (!when) return '—';
@@ -536,8 +543,14 @@
           <td>${esc(gameName(g.game_type))}</td>
           <td>${esc(g.name_used)}${g.role ? ` <span class="pill">${esc(g.role)}</span>` : ''}${g.team ? ` <span class="pill">${esc(g.team)}</span>` : ''}</td>
           <td>${g.won === true ? '<span class="pill good">won</span>' : g.won === false ? '<span class="muted">lost</span>' : ''}</td>
+          <td>${g.field > 1 ? `${esc(ordinal(g.place))} <span class="muted">/ ${esc(g.field)}</span>` : '—'}</td>
           <td class="num">${g.points}</td>
         </tr>`).join('');
+      const wins = games.filter((g) => g.won === true).length;
+      const losses = games.filter((g) => g.won === false).length;
+      const firsts = games.filter((g) => g.field > 1 && g.place === 1).length;
+      const gamesSummary = `${games.length} game${games.length === 1 ? '' : 's'}`
+        + ` · ${wins}W–${losses}L` + (firsts ? ` · ${firsts} finished 1st` : '');
       box.innerHTML = `<h2>Account</h2>
         <div class="card">
           <div class="detail-head">
@@ -565,8 +578,8 @@
           <h2>Devices</h2>
           ${devices.length ? `<div class="table-wrap"><table><tbody>${deviceRows}</tbody></table></div>` : '<p class="empty">No devices linked.</p>'}
 
-          <h2>Recent games</h2>
-          ${games.length ? `<div class="table-wrap"><table><thead><tr><th>When</th><th>Game</th><th>As</th><th>Result</th><th class="num">Points</th></tr></thead><tbody>${gameRows}</tbody></table></div>` : '<p class="empty">No games recorded.</p>'}
+          <h2>Match history</h2>
+          ${games.length ? `<p class="muted" style="margin:0 0 8px">${esc(gamesSummary)}</p><div class="table-wrap"><table><thead><tr><th>When</th><th>Game</th><th>As</th><th>Result</th><th>Place</th><th class="num">Points</th></tr></thead><tbody>${gameRows}</tbody></table></div>` : '<p class="empty">No games recorded.</p>'}
         </div>`;
       box.classList.remove('hidden');
       box.dataset.user = user.id;
