@@ -27,6 +27,18 @@
       <p id="acct-email" class="card-email hidden"></p>
       <p id="acct-wallet" class="bf-bet-balance hidden"></p>
 
+      <nav id="acct-tabs" class="tabs hidden" role="tablist">
+        <button type="button" data-tab="profile" class="active">Profile</button>
+        <button type="button" data-tab="store">Store</button>
+      </nav>
+
+      <div id="tab-store" class="hidden">
+        <p id="store-balance" class="bf-bet-balance"></p>
+        <div id="store-grid" class="store-grid"></div>
+        <p id="store-error" class="error hidden"></p>
+      </div>
+
+      <div id="tab-profile">
       <div id="acct-rating-card" class="rating-card hidden">
         <div class="rating-card-top">
           <img id="acct-card-sticker" class="rating-photo" alt="" />
@@ -66,6 +78,7 @@
 
       <h2 id="acct-rivals-heading" class="scoreboard-heading hidden">Rivals</h2>
       <ul id="acct-rivals" class="card-rivals"></ul>
+      </div><!-- /#tab-profile -->
 
       <button id="acct-admin-btn" class="hidden" type="button">🛠 Admin panel</button>
       <button id="acct-signout-btn" class="secondary hidden" type="button">Sign out</button>

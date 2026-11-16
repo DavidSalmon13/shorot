@@ -392,7 +392,10 @@ async function canUseStickerForScope(scope, sticker) {
   if (!scope) return false;
   try {
     const earned = await earnedBadgeIds(scope);
-    return badgeIds.some((b) => earned.has(b));
+    if (badgeIds.some((b) => earned.has(b))) return true;
+    // The Premium Sticker Pack is an alternate unlock path to the badge-art stickers (see
+    // docs/specs/store-specs.md): owning it frees them without the badge.
+    return !!scope.userId && (await store.owns(scope.userId, store.PREMIUM_STICKER_PACK));
   } catch (err) {
     console.error('Sticker unlock check failed:', err.message);
     return true;
@@ -518,8 +521,10 @@ async function playerCard({ userId, clientId }) {
   for (const g of Object.values(byGame)) g.placement /= g.played;
   const earned = await earnedBadgeIds(scope);
   const badges = BADGES.map((b) => ({ ...publicBadge(b), earned: earned.has(b.id) }));
-  // Guests can wear every sticker (see canUseSticker()); only accounts earn them.
-  const lockedStickers = !userId ? [] : [...BADGE_STICKERS]
+  // Guests can wear every sticker (see canUseSticker()); only accounts earn them. Owning
+  // the Premium Sticker Pack unlocks the lot (docs/specs/store-specs.md), so nothing's locked.
+  const premiumUnlocked = !!userId && (await store.owns(userId, store.PREMIUM_STICKER_PACK));
+  const lockedStickers = !userId || premiumUnlocked ? [] : [...BADGE_STICKERS]
     .filter(([, ids]) => !ids.some((id) => earned.has(id)))
     .map(([sticker]) => sticker);
   const ratings = computeRatings(byGame);

@@ -75,6 +75,21 @@ async function getInventory(userId) {
   }
 }
 
+/** Whether this user owns at least one of `itemId` (false when disabled, or on error). */
+async function owns(userId, itemId) {
+  if (!isEnabled() || !userId) return false;
+  try {
+    const { rows } = await db.query(
+      'SELECT 1 FROM store_inventory WHERE user_id = $1 AND item_id = $2 AND quantity > 0',
+      [userId, itemId]
+    );
+    return rows.length > 0;
+  } catch (err) {
+    console.error('Store ownership check failed:', err.message);
+    return false;
+  }
+}
+
 /** This user's equipped cosmetics as { slot: value }, or all-null when disabled/missing. */
 async function getEquipped(userId) {
   if (!isEnabled() || !userId) return emptyEquipped();
@@ -270,6 +285,7 @@ module.exports = {
   getEquipped,
   equippedFromRow,
   emptyEquipped,
+  owns,
   buyItem,
   equip,
   consume,
@@ -278,4 +294,5 @@ module.exports = {
   storeState,
   publicCatalog,
   COOLDOWNS,
+  PREMIUM_STICKER_PACK: 'stickerpack.premium',
 };
