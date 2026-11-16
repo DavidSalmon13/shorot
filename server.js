@@ -35,6 +35,7 @@ const stats = require('./server/stats');
 const db = require('./server/db');
 const accounts = require('./server/accounts');
 const betting = require('./server/betting');
+const store = require('./server/store');
 const admin = require('./server/admin');
 const { logActivity } = require('./server/activity');
 
@@ -197,6 +198,19 @@ const ctx = {
       }
       return results;
     },
+  },
+  // server/store.js only knows userIds and has no idea about rooms or sockets; the lobby's
+  // storeAction handler (and game modules) reach it through here, the same way ctx.betting
+  // wraps server/betting.js. Thin pass-throughs - the room/socket knowledge stays in lobby.js.
+  store: {
+    isEnabled: () => store.isEnabled(),
+    getInventory: (userId) => store.getInventory(userId),
+    getEquipped: (userId) => store.getEquipped(userId),
+    buyItem: (userId, itemId) => store.buyItem(userId, itemId),
+    equip: (userId, slot, value) => store.equip(userId, slot, value),
+    consume: (userId, itemId) => store.consume(userId, itemId),
+    canAct: (room, opts) => store.canAct(room, opts),
+    recordAction: (room, opts) => store.recordAction(room, opts),
   },
 };
 

@@ -15,6 +15,7 @@ const express = require('express');
 const { OAuth2Client } = require('google-auth-library');
 const db = require('./db');
 const betting = require('./betting');
+const store = require('./store');
 const { BADGES, publicBadge } = require('./badges');
 const { computeRatings, RECENT_GAMES } = require('./ratings');
 const { isValidSticker } = require('./stickers');
@@ -57,7 +58,9 @@ async function userFromRequest(req) {
   const token = readCookie(req, SESSION_COOKIE);
   if (!token) return null;
   const { rows } = await db.query(
-    `SELECT u.id, u.display_name, u.email, u.avatar_url, u.sticker
+    `SELECT u.id, u.display_name, u.email, u.avatar_url, u.sticker,
+            u.equipped_frame, u.equipped_name_color, u.equipped_title,
+            u.equipped_podium, u.equipped_board_skin, u.equipped_entrance
        FROM auth_sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.expires_at > now() AND u.banned_at IS NULL`,
     [hashToken(token)]
@@ -534,7 +537,15 @@ async function playerCard({ userId, clientId }) {
 }
 
 function publicUser(u) {
-  return { id: String(u.id), name: u.display_name, avatar: u.avatar_url || null, sticker: u.sticker || null };
+  return {
+    id: String(u.id),
+    name: u.display_name,
+    avatar: u.avatar_url || null,
+    sticker: u.sticker || null,
+    // Equipped cosmetics ride along on identity so they render wherever a player is shown.
+    // null (not an empty set) when the store is off, so flag-off is exactly as before.
+    cosmetics: store.isEnabled() ? store.equippedFromRow(u) : null,
+  };
 }
 
 /** publicUser plus the email - only for the signed-in player's own account, never other players' cards. */
@@ -606,6 +617,61 @@ function registerAccountRoutes(app) {
     }
   });
 
+  // --- Store (see docs/specs/store-specs.md) ---------------------------------------------
+  // The catalog + this user's inventory, equipped cosmetics and balance. Guests and the
+  // store-off case get { enabled: false }, so the client shows nothing - same guarantee
+  // betting gives.
+  app.get('/api/store', async (req, res) => {
+    if (!store.isEnabled()) return res.json({ enabled: false });
+    try {
+      const user = await userFromRequest(req);
+      if (!user) return res.json({ enabled: true, signedIn: false });
+      const [inventory, equipped, balance] = await Promise.all([
+        store.getInventory(user.id),
+        store.getEquipped(user.id),
+        betting.getBalance(user.id),
+      ]);
+      res.json({ enabled: true, signedIn: true, items: store.publicCatalog(), inventory, equipped, balance });
+    } catch (err) {
+      console.error('GET /api/store failed:', err.message);
+      res.status(500).json({ ok: false, error: 'Could not load the store' });
+    }
+  });
+
+  app.post('/api/store/buy', express.json({ limit: '4kb' }), async (req, res) => {
+    if (!store.isEnabled()) return res.status(503).json({ ok: false, error: 'The store is not available' });
+    try {
+      const user = await userFromRequest(req);
+      if (!user) return res.status(401).json({ ok: false, error: 'Not signed in' });
+      const itemId = req.body && req.body.itemId;
+      if (typeof itemId !== 'string') return res.status(400).json({ ok: false, error: 'Invalid item' });
+      const result = await store.buyItem(user.id, itemId);
+      if (!result.ok) return res.status(400).json(result);
+      const [inventory, balance] = await Promise.all([store.getInventory(user.id), betting.getBalance(user.id)]);
+      res.json({ ok: true, inventory, balance });
+    } catch (err) {
+      console.error('POST /api/store/buy failed:', err.message);
+      res.status(500).json({ ok: false, error: 'Could not complete that purchase' });
+    }
+  });
+
+  app.post('/api/store/equip', express.json({ limit: '4kb' }), async (req, res) => {
+    if (!store.isEnabled()) return res.status(503).json({ ok: false, error: 'The store is not available' });
+    try {
+      const user = await userFromRequest(req);
+      if (!user) return res.status(401).json({ ok: false, error: 'Not signed in' });
+      const slot = req.body && req.body.slot;
+      const value = req.body ? req.body.value : null;
+      if (typeof slot !== 'string') return res.status(400).json({ ok: false, error: 'Invalid slot' });
+      const result = await store.equip(user.id, slot, value);
+      if (!result.ok) return res.status(400).json(result);
+      res.json({ ok: true, equipped: result.equipped });
+    } catch (err) {
+      console.error('POST /api/store/equip failed:', err.message);
+      res.status(500).json({ ok: false, error: 'Could not equip that' });
+    }
+  });
+
   app.post('/api/auth/google', express.json({ limit: '16kb' }), async (req, res) => {
     if (!signInEnabled()) return res.status(503).json({ ok: false, error: 'Sign-in is not available' });
     const credential = req.body && req.body.credential;
@@ -642,7 +708,10 @@ function registerAccountRoutes(app) {
       );
       const newBadges = device.rows.length ? await evaluateBadges(device.rows[0].id) : [];
       const { rows } = await db.query(
-        'SELECT id, display_name, email, avatar_url, sticker FROM users WHERE id = $1',
+        `SELECT id, display_name, email, avatar_url, sticker,
+                equipped_frame, equipped_name_color, equipped_title,
+                equipped_podium, equipped_board_skin, equipped_entrance
+           FROM users WHERE id = $1`,
         [userId]
       );
       logActivity('signin', `${rows[0].display_name} signed in`);
