@@ -146,6 +146,8 @@ function bluffSeats(room) {
       // fallback), with the gold signed-in ring - purely cosmetic here.
       sticker: (p && p.sticker) || null,
       signedIn: !!(p && p.signedIn),
+      // Equipped store cosmetics (frame/name color/title), same as the lobby roster.
+      cosmetics: (p && p.cosmetics) || null,
     };
   });
 }

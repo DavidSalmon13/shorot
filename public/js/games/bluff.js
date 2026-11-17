@@ -6,6 +6,7 @@ import { renderScoreboard } from '../shared/scoreboard.js';
 import { confirmDialog } from '../shared/confirmDialog.js';
 import { emojiForName } from '../shared/playerEmoji.js';
 import { setTokenBalance } from '../shared/tokens.js';
+import { applyCosmetics } from '../shared/cosmetics.js';
 import { sfx, haptics, haptic } from '../fx.js';
 
 const BF_SUIT_SYMBOL = { s: '♠', h: '♥', d: '♦', c: '♣' };
@@ -341,6 +342,9 @@ function renderBfSeats(seats, { tappable, highlightName } = {}) {
     name.textContent = seat.name;
     chip.append(count, name);
     seatEl.appendChild(chip);
+    // Equipped store cosmetics: frame on the avatar, color on the name. No title chip here -
+    // the seat is tight (see applyCosmetics' { title:false }).
+    applyCosmetics({ avatar, name }, seat.cosmetics, { title: false });
 
     let tag = '';
     if (seat.eliminated) tag = 'Out';

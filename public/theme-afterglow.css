@@ -864,3 +864,163 @@
 :where(:root[data-theme="afterglow"]) .bf-reveal-question {
   color: var(--muted);
 }
+
+/* ===== Store: equipped cosmetics (docs/specs/store-specs.md) =================== */
+/* All new classes, added by public/js/shared/cosmetics.js wherever a player is drawn
+   (lobby roster, Bluff seats). Purely visual - they never touch ids, layout or JS. */
+
+/* Frames: a ring around the avatar. A box-shadow, so it follows whatever border-radius
+   the avatar (.player-emoji / .player-emoji-img / .bf-seat-avatar) already has. */
+:where(:root[data-theme="afterglow"]) .cosmetic-frame { position: relative; }
+:where(:root[data-theme="afterglow"]) .cosmetic-frame-gold {
+  box-shadow: 0 0 0 2px #0a0a12, 0 0 0 4px #ffcf3f, 0 0 12px rgba(255, 207, 63, 0.6);
+}
+:where(:root[data-theme="afterglow"]) .cosmetic-frame-neon {
+  box-shadow: 0 0 0 2px #0a0a12, 0 0 0 4px #39e0ff, 0 0 14px rgba(57, 224, 255, 0.7);
+}
+:where(:root[data-theme="afterglow"]) .cosmetic-frame-flames {
+  box-shadow: 0 0 0 2px #0a0a12, 0 0 0 4px #ff7a1a, 0 0 16px rgba(255, 122, 26, 0.75);
+}
+:where(:root[data-theme="afterglow"]) .cosmetic-frame-crown {
+  box-shadow: 0 0 0 2px #0a0a12, 0 0 0 4px #b388ff, 0 0 14px rgba(179, 136, 255, 0.7);
+}
+/* The crown frame also perches a little 👑 above the avatar. */
+:where(:root[data-theme="afterglow"]) .cosmetic-frame-crown::after {
+  content: "👑";
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.82rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Name colors / glow. */
+:where(:root[data-theme="afterglow"]) .cosmetic-name-lime { color: #c6ff4a; text-shadow: 0 0 10px rgba(198, 255, 74, 0.55); }
+:where(:root[data-theme="afterglow"]) .cosmetic-name-magenta { color: #ff6ad5; text-shadow: 0 0 10px rgba(255, 106, 213, 0.55); }
+:where(:root[data-theme="afterglow"]) .cosmetic-name-cyan { color: #39e0ff; text-shadow: 0 0 10px rgba(57, 224, 255, 0.55); }
+:where(:root[data-theme="afterglow"]) .cosmetic-name-sunset { color: #ffb24a; text-shadow: 0 0 10px rgba(255, 178, 74, 0.55); }
+:where(:root[data-theme="afterglow"]) .cosmetic-name-rainbow {
+  background: linear-gradient(90deg, #ff6ad5, #ffd84a, #4ade80, #39e0ff, #b388ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Vanity title chip, trailing the name. */
+:where(:root[data-theme="afterglow"]) .cosmetic-title {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: rgba(198, 255, 74, 0.12);
+  border: 1px solid rgba(198, 255, 74, 0.3);
+  vertical-align: middle;
+}
+
+/* Grand entrance: a flashier arrival than the default lobby-join-in. */
+@keyframes cosmeticEntrance {
+  0% { opacity: 0; transform: translateY(-12px) scale(0.82); filter: brightness(1.9); }
+  55% { transform: translateY(0) scale(1.07); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: brightness(1); }
+}
+:where(:root[data-theme="afterglow"]) .cosmetic-entrance {
+  animation: cosmeticEntrance 0.75s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+/* Table Skin: Midnight - a personal, local ground tint for the owner only (applyMyBoardSkin
+   adds the class to <body>). Additive on .app-main so it never fights body::before. */
+:where(body.boardskin-midnight) .app-main {
+  background:
+    radial-gradient(1200px 520px at 50% -10%, rgba(103, 76, 196, 0.2), transparent 70%),
+    radial-gradient(820px 420px at 50% 112%, rgba(34, 48, 132, 0.18), transparent 70%);
+}
+
+/* Store tab on the account page. */
+:where(:root[data-theme="afterglow"]) .store-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+:where(:root[data-theme="afterglow"]) .store-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--ag-glass);
+  border: 1px solid var(--ag-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+:where(:root[data-theme="afterglow"]) .store-card-owned { border-color: rgba(198, 255, 74, 0.35); }
+:where(:root[data-theme="afterglow"]) .store-card-icon { font-size: 1.9rem; line-height: 1; }
+:where(:root[data-theme="afterglow"]) .store-card-name { font-weight: 700; }
+:where(:root[data-theme="afterglow"]) .store-card-desc { font-size: 0.8rem; color: var(--muted); flex: 1; }
+:where(:root[data-theme="afterglow"]) .store-card-price { font-weight: 700; color: var(--accent); }
+:where(:root[data-theme="afterglow"]) .store-card-qty { font-size: 0.8rem; color: var(--muted); }
+:where(:root[data-theme="afterglow"]) .store-variants { display: flex; flex-wrap: wrap; gap: 6px; }
+:where(:root[data-theme="afterglow"]) .store-variant {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text);
+  background: var(--ag-glass-hi);
+  border: 1px solid var(--ag-line);
+}
+:where(:root[data-theme="afterglow"]) .store-variant-on {
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+:where(:root[data-theme="afterglow"]) .store-owned-tag { font-size: 0.78rem; font-weight: 700; color: var(--accent); }
+
+/* Account-page tab bar (Profile / Store), mirroring the admin page's tabs. */
+:where(:root[data-theme="afterglow"]) .tabs {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 14px;
+  border-bottom: 1px solid var(--ag-line);
+}
+:where(:root[data-theme="afterglow"]) .tabs button {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 8px 14px;
+  font-family: var(--font);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+}
+:where(:root[data-theme="afterglow"]) .tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+:where(:root[data-theme="afterglow"]) .store-buy-btn {
+  appearance: none;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+:where(:root[data-theme="afterglow"]) .store-buy-btn:disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+  background: var(--ag-glass);
+  border-color: var(--ag-line);
+}

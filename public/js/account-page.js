@@ -12,6 +12,7 @@
 
 import { confirmDialog } from './shared/confirmDialog.js';
 import { GAME_LABELS, renderBadges, renderRivals } from './shared/cardRender.js';
+import { applyCosmetics, TITLE_LABELS } from './shared/cosmetics.js';
 
 const STATS = ['SPD', 'COM', 'STR', 'TAC', 'NRV', 'DEC'];
 
@@ -39,6 +40,12 @@ const signOutBtn = document.getElementById('acct-signout-btn');
 const adminBtn = document.getElementById('acct-admin-btn');
 const deleteBtn = document.getElementById('acct-delete-btn');
 const errorEl = document.getElementById('acct-error');
+const tabsEl = document.getElementById('acct-tabs');
+const tabProfileEl = document.getElementById('tab-profile');
+const tabStoreEl = document.getElementById('tab-store');
+const storeBalanceEl = document.getElementById('store-balance');
+const storeGridEl = document.getElementById('store-grid');
+const storeErrorEl = document.getElementById('store-error');
 
 function getClientId() {
   return localStorage.getItem('imposterClientId') || '';
@@ -54,6 +61,8 @@ let signInEnabled = false;
 let lockedStickers = new Set();
 let allStickers = [];
 let myAccountSticker = null;
+// Store (docs/specs/store-specs.md): { items, inventory, equipped, balance } or null.
+let storeData = null;
 
 async function loadGoogleScript() {
   if (window.google && window.google.accounts) return;
@@ -170,6 +179,184 @@ async function chooseSticker(sticker) {
   }
 }
 
+// --- Store tab --------------------------------------------------------------------------
+
+function switchTab(tab) {
+  tabsEl.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  tabProfileEl.classList.toggle('hidden', tab !== 'profile');
+  tabStoreEl.classList.toggle('hidden', tab !== 'store');
+}
+
+tabsEl.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+function storeError(msg) {
+  storeErrorEl.textContent = msg || '';
+  storeErrorEl.classList.toggle('hidden', !msg);
+}
+
+// Fetches the catalog + this account's inventory/equipped/balance, reveals the tab bar,
+// and renders. Guests or a store-off server just leave the tab bar hidden (profile only).
+async function loadStore() {
+  try {
+    const res = await fetch('/api/store');
+    const data = await res.json();
+    if (!data.enabled || !data.signedIn) {
+      storeData = null;
+      tabsEl.classList.add('hidden');
+      return;
+    }
+    storeData = data;
+    tabsEl.classList.remove('hidden');
+    renderStore();
+    applyCardCosmetics();
+  } catch (err) {
+    tabsEl.classList.add('hidden');
+  }
+}
+
+function inventoryCount(itemId) {
+  const row = (storeData.inventory || []).find((r) => r.itemId === itemId);
+  return row ? row.quantity : 0;
+}
+
+function variantLabel(slot, v) {
+  if (slot === 'title') return TITLE_LABELS[v] || v;
+  if (v.includes('.')) return 'Equip'; // single-look slots (podium / board skin / entrance)
+  return v.charAt(0).toUpperCase() + v.slice(1);
+}
+
+function buyButton(item, label) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'store-buy-btn';
+  btn.textContent = `${label || 'Buy'} · 🪙 ${item.price}`;
+  btn.disabled = storeData.balance < item.price;
+  btn.addEventListener('click', () => buyStoreItem(item.id));
+  return btn;
+}
+
+function variantRow(item) {
+  const wrap = document.createElement('div');
+  wrap.className = 'store-variants';
+  const equipped = storeData.equipped[item.slot];
+  for (const v of item.variants) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    const on = equipped === v;
+    chip.className = 'store-variant' + (on ? ' store-variant-on' : '');
+    chip.textContent = v.includes('.') ? (on ? 'Equipped ✓' : 'Equip') : variantLabel(item.slot, v);
+    // Tapping the equipped choice again un-equips it.
+    chip.addEventListener('click', () => equipStoreItem(item.slot, on ? null : v));
+    wrap.appendChild(chip);
+  }
+  return wrap;
+}
+
+function renderStore() {
+  if (!storeData) return;
+  storeBalanceEl.textContent = `🪙 ${storeData.balance} token${storeData.balance === 1 ? '' : 's'}`;
+  storeGridEl.innerHTML = '';
+  for (const item of storeData.items) {
+    const owned = inventoryCount(item.id) > 0;
+    const card = document.createElement('div');
+    card.className = 'store-card' + (owned ? ' store-card-owned' : '');
+
+    const icon = document.createElement('div');
+    icon.className = 'store-card-icon';
+    icon.textContent = item.icon;
+    const name = document.createElement('div');
+    name.className = 'store-card-name';
+    name.textContent = item.name;
+    const desc = document.createElement('div');
+    desc.className = 'store-card-desc';
+    desc.textContent = item.description;
+    card.append(icon, name, desc);
+
+    if (item.type === 'consumable') {
+      const qty = document.createElement('div');
+      qty.className = 'store-card-qty';
+      const n = inventoryCount(item.id);
+      qty.textContent = n ? `You have ${n}` : 'None yet';
+      card.append(qty, buyButton(item, owned ? 'Buy more' : 'Buy'));
+    } else if (!owned) {
+      card.append(buyButton(item));
+    } else {
+      const tag = document.createElement('div');
+      tag.className = 'store-owned-tag';
+      tag.textContent = 'Owned';
+      card.append(tag);
+      if (item.slot) card.append(variantRow(item));
+      if (item.id === 'stickerpack.premium') {
+        const note = document.createElement('div');
+        note.className = 'store-card-qty';
+        note.textContent = 'Premium stickers unlocked';
+        card.append(note);
+      }
+    }
+    storeGridEl.appendChild(card);
+  }
+}
+
+async function buyStoreItem(itemId) {
+  storeError('');
+  try {
+    const res = await fetch('/api/store/buy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId }),
+    });
+    const data = await res.json();
+    if (!data.ok) return storeError(data.error || 'Could not buy that');
+    storeData.inventory = data.inventory;
+    storeData.balance = data.balance;
+    walletEl.textContent = `🪙 ${data.balance} token${data.balance === 1 ? '' : 's'}`;
+    renderStore();
+    // The Premium Sticker Pack frees every badge-locked sticker (server does the same) -
+    // reflect it in the Profile tab's sticker grid right away.
+    if (itemId === 'stickerpack.premium') {
+      lockedStickers = new Set();
+      renderStickerGrid();
+    }
+  } catch (err) {
+    storeError('Could not buy that, check your connection');
+  }
+}
+
+async function equipStoreItem(slot, value) {
+  storeError('');
+  try {
+    const res = await fetch('/api/store/equip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slot, value }),
+    });
+    const data = await res.json();
+    if (!data.ok) return storeError(data.error || 'Could not equip that');
+    storeData.equipped = data.equipped;
+    renderStore();
+    applyCardCosmetics();
+  } catch (err) {
+    storeError('Could not equip that, check your connection');
+  }
+}
+
+// Live-previews the equipped cosmetics on the account's own rating card (frame on the
+// sticker photo, color on the name, title chip after it). Clears only the cosmetic-* classes
+// first (not the whole className, which carries rating-photo/rating-name and the `hidden`
+// state renderRatingCard sets), so un-equipping reverts cleanly.
+function clearCosmeticClasses(el) {
+  [...el.classList].forEach((c) => c.startsWith('cosmetic-') && el.classList.remove(c));
+}
+function applyCardCosmetics() {
+  clearCosmeticClasses(cardStickerEl);
+  clearCosmeticClasses(cardNameEl);
+  const oldChip = cardNameEl.parentElement && cardNameEl.parentElement.querySelector('.cosmetic-title');
+  if (oldChip) oldChip.remove();
+  if (storeData && storeData.equipped) {
+    applyCosmetics({ avatar: cardStickerEl, name: cardNameEl }, storeData.equipped);
+  }
+}
+
 function renderHistoryTable(byGame) {
   historyBodyEl.innerHTML = '';
   const rows = Object.entries(byGame || {}).sort((a, b) => b[1].played - a[1].played);
@@ -223,6 +410,15 @@ function render(user, card, balance) {
   renderRivals(rivalsListEl, rivalsHeadingEl, (card && card.rivals) || []);
 
   lockedStickers = new Set((card && card.lockedStickers) || []);
+
+  // Store tab: only for signed-in players, and only where the server has it enabled.
+  if (user) {
+    loadStore();
+  } else {
+    storeData = null;
+    tabsEl.classList.add('hidden');
+    switchTab('profile');
+  }
 }
 
 // Only the account(s) in the server's ADMIN_EMAILS see this - the installed app has no

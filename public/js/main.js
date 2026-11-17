@@ -19,6 +19,7 @@ import { emojiForName } from './shared/playerEmoji.js';
 import { initAccount, refreshCard, onLockedStickers, openPlayerCard } from './shared/account.js';
 import { initReactions } from './shared/reactions.js';
 import { initInstallButtons } from './shared/installApp.js';
+import { applyCosmetics, applyMyBoardSkin } from './shared/cosmetics.js';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -468,12 +469,14 @@ function buildKickButton(name, pushRight) {
   return btn;
 }
 
-function renderLobby(players, scoreboard, playerStickers, playerSignedIn, playerRatings) {
+function renderLobby(players, scoreboard, playerStickers, playerSignedIn, playerRatings, playerCosmetics = {}) {
   // First render after a join/reconnect shouldn't animate anyone in — only
   // players who arrive while this client is already sitting in the lobby.
   const isFirstRender = knownLobbyNames === null;
   const newNames = isFirstRender ? new Set() : new Set(players.filter((n) => !knownLobbyNames.has(n)));
   knownLobbyNames = new Set(players);
+  // Your own equipped board skin is a personal, local table look (see cosmetics.js).
+  applyMyBoardSkin(playerCosmetics[myName]);
 
   lobbyList.innerHTML = '';
   players.forEach((n) => {
@@ -507,6 +510,10 @@ function renderLobby(players, scoreboard, playerStickers, playerSignedIn, player
     label.textContent = n === currentHostName ? `${n} (host)` : n;
     li.appendChild(avatar);
     li.appendChild(label);
+    // Equipped cosmetics (frame/name color/title/entrance) for signed-in players - a no-op
+    // for anyone without any. Done before the mini-card/kick button so the title chip trails
+    // the name, not the row's trailing controls.
+    applyCosmetics({ avatar, name: label, row: li }, playerCosmetics && playerCosmetics[n]);
     const rating = playerSignedIn && playerSignedIn[n] && playerRatings && playerRatings[n];
     if (rating) li.appendChild(buildMiniCard(n, rating, sticker));
     if (isHost && n !== myName) li.appendChild(buildKickButton(n, !rating));
@@ -603,7 +610,7 @@ function routeFromJoin(res) {
 
   applyWordLanguage(res.wordLanguage);
   applyWordTheme(res.wordTheme);
-  renderLobby(res.players || [], res.scoreboard || [], res.playerStickers || {}, res.playerSignedIn || {}, res.playerRatings || {});
+  renderLobby(res.players || [], res.scoreboard || [], res.playerStickers || {}, res.playerSignedIn || {}, res.playerRatings || {}, res.playerCosmetics || {});
   showScreen('lobby');
 }
 
@@ -828,11 +835,11 @@ socket.on('backgroundChanged', ({ background }) => {
   applyBackground(background);
 });
 
-socket.on('lobbyUpdate', ({ players, host, scoreboard, wordLanguage: lang, wordTheme: theme, playerStickers, playerSignedIn, playerRatings }) => {
+socket.on('lobbyUpdate', ({ players, host, scoreboard, wordLanguage: lang, wordTheme: theme, playerStickers, playerSignedIn, playerRatings, playerCosmetics }) => {
   setHost(host);
   applyWordLanguage(lang);
   applyWordTheme(theme);
-  renderLobby(players, scoreboard, playerStickers, playerSignedIn, playerRatings);
+  renderLobby(players, scoreboard, playerStickers, playerSignedIn, playerRatings, playerCosmetics);
 });
 
 const adminNotice = document.getElementById('admin-notice');

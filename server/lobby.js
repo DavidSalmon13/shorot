@@ -95,6 +95,19 @@ function connectedRatings(room) {
   return out;
 }
 
+// name -> equipped cosmetics { frame, nameColor, title, ... } for connected signed-in
+// players who have any equipped. Cached on the player like ratings (see refreshRatings),
+// since equipped choices only change out-of-band on the account page.
+function connectedCosmetics(room) {
+  const out = {};
+  for (const [name, p] of room.players.entries()) {
+    if (p.connected && p.signedIn && p.cosmetics && Object.values(p.cosmetics).some(Boolean)) {
+      out[name] = p.cosmetics;
+    }
+  }
+  return out;
+}
+
 // Looks up the overall rating + tier for the named signed-in players and re-broadcasts
 // the lobby if any changed. Cached on the player (not fetched per lobbyUpdate) because
 // ratings only move when a game is recorded: called on join and on every return to the
@@ -109,9 +122,15 @@ async function refreshRatings(roomCode, room, names) {
     targets.map(async ([, p]) => {
       const result = await playerCardForUser(p.userId);
       const r = result && result.card && result.card.ratings;
-      if (!r) return;
-      if (!p.rating || p.rating.ovr !== r.ovr || p.rating.tier !== r.tier) {
+      if (r && (!p.rating || p.rating.ovr !== r.ovr || p.rating.tier !== r.tier)) {
         p.rating = { ovr: r.ovr, tier: r.tier };
+        changed = true;
+      }
+      // Equipped cosmetics ride the same cache/refresh lifecycle as the rating - they only
+      // change when the player equips something on the account page, out of band from here.
+      const cosmetics = await ctx.store.getEquipped(p.userId);
+      if (JSON.stringify(cosmetics) !== JSON.stringify(p.cosmetics || {})) {
+        p.cosmetics = cosmetics;
         changed = true;
       }
     })
@@ -143,6 +162,7 @@ function broadcastLobby(roomCode, room) {
     playerStickers: connectedStickers(room),
     playerSignedIn: connectedSignedIn(room),
     playerRatings: connectedRatings(room),
+    playerCosmetics: connectedCosmetics(room),
     host: room.hostName,
     roomCode,
     scoreboard: scoreboardEntries(room),
@@ -198,6 +218,7 @@ function reconnectPayload(room, existing) {
     playerStickers: connectedStickers(room),
     playerSignedIn: connectedSignedIn(room),
     playerRatings: connectedRatings(room),
+    playerCosmetics: connectedCosmetics(room),
     host: room.hostName,
     scoreboard: scoreboardEntries(room),
     wordLanguage: room.wordLanguage || 'english',
