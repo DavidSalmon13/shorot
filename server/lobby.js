@@ -12,6 +12,7 @@ const {
 const { saveRoomsToDisk } = require('./persistence');
 const { getGame, clearAllGameState, initGameState } = require('./gameRegistry');
 const { isValidSticker } = require('./stickers');
+const { getItem: getStoreItem } = require('./store/catalog');
 const {
   canUseSticker,
   userFromSocket,
@@ -663,6 +664,50 @@ function registerLobbyHandlers(socket) {
 
     callback({ ok: true });
     roomEmit(roomCode, 'reaction', { name: socket.data.name, sticker });
+  });
+
+  // Store consumable action (the 🥊 glove and friends): spends one charge of an owned
+  // consumable and broadcasts a ~1s visual gag over the target's avatar to everyone in the
+  // room. Cross-game and lobby-wide because it's shared plumbing, not a game module - exactly
+  // like sendReaction above. Signed-in only (guests can be targets but can't fire); the three
+  // anti-spam cooldowns and the free punch-back window are enforced server-side via
+  // ctx.store.canAct (see server/store.js and docs/specs/store-specs.md). Fail-open: a
+  // disabled store, missing charge or cleared cooldown just returns an error the client shows.
+  socket.on('storeAction', async (data, callback) => {
+    callback = callback || (() => {});
+    const roomCode = socket.data.roomCode;
+    const room = getRoom(socket);
+    if (!room) return callback({ ok: false, error: 'Not in a room' });
+    if (!ctx.store.isEnabled()) return callback({ ok: false, error: 'The store is not available' });
+
+    const actorName = socket.data.name;
+    const actor = room.players.get(actorName);
+    if (!actor || !actor.userId) return callback({ ok: false, error: 'Sign in to use store items' });
+
+    const itemId = String((data && data.itemId) || '');
+    const item = getStoreItem(itemId);
+    if (!item || item.type !== 'consumable') return callback({ ok: false, error: 'Not a usable item' });
+
+    // self-target gags (confetti bomb) land on the actor; everything else needs a live target.
+    const selfTarget = item.target === 'self';
+    const target = selfTarget ? actorName : String((data && data.targetName) || '');
+    if (!selfTarget) {
+      const tp = room.players.get(target);
+      if (!tp || !tp.connected) return callback({ ok: false, error: 'Pick someone in the room' });
+    }
+
+    const gate = ctx.store.canAct(room, { actor: actorName, target, selfTarget });
+    if (!gate.ok) return callback({ ok: false, error: gate.error });
+
+    // Only now spend the charge - a blocked action (cooldown) must never cost one. The debit
+    // is race-safe in server/store.js; rowCount 0 means they're out of charges after all.
+    const spent = await ctx.store.consume(actor.userId, itemId);
+    if (!spent.ok) return callback({ ok: false, error: 'Out of charges' });
+
+    ctx.store.recordAction(room, { actor: actorName, target, selfTarget, retaliating: gate.retaliating });
+    logActivity('store', `${actorName} used ${item.name}${selfTarget ? '' : ` on ${target}`}`);
+    callback({ ok: true, retaliating: gate.retaliating });
+    roomEmit(roomCode, 'storeAction', { itemId, fromName: actorName, targetName: target, selfTarget });
   });
 
   socket.on('resetScoreboard', (callback) => {

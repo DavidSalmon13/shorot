@@ -5523,3 +5523,221 @@ button.confirm-danger {
   }
 }
 }
+
+/* ---------- Store consumable actions (public/js/shared/storeActions.js) ---------- */
+
+/* Owned-consumables tray, mirroring the reaction row but on the opposite corner so the two
+   don't collide. Collapses to nothing for guests / players with no charges via :empty. */
+.store-action-row {
+  position: fixed;
+  right: 0.8rem;
+  bottom: calc(0.8rem + env(safe-area-inset-bottom));
+  z-index: 90;
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.35rem;
+  background: var(--glass-bg-strong);
+  border: 2px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-soft);
+}
+
+.store-action-row:empty {
+  display: none;
+}
+
+.store-action-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: var(--wood-mid);
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: transform 0.12s var(--ease);
+}
+
+.store-action-btn:active {
+  transform: scale(0.88);
+}
+
+.store-action-btn.store-action-armed {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 170, 60, 0.3);
+}
+
+.store-action-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: #111;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* Pick-target mode: every targetable avatar glows and pulses until one is tapped. */
+body.store-picking {
+  cursor: crosshair;
+}
+
+body.store-picking [data-player] {
+  cursor: pointer;
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+  border-radius: 10px;
+  animation: store-target-pulse 1s ease-in-out infinite;
+}
+
+@keyframes store-target-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Full-viewport overlay the gags render into, over the top of everything. */
+.store-fx-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.store-fx {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -50%);
+  animation: store-fx-pop 1s ease-out forwards;
+}
+
+.store-fx-glyph {
+  font-size: 3rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.store-fx-floating .store-fx-glyph {
+  font-size: 4rem;
+}
+
+.store-fx-from {
+  margin-top: 2px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+/* The avatar being hit gives a quick jolt. */
+[data-player].store-hit {
+  animation: store-hit-shake 0.5s ease-in-out;
+}
+
+@keyframes store-fx-pop {
+  0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+  20% { transform: translate(-50%, -50%) scale(1.25); opacity: 1; }
+  70% { transform: translate(-50%, -55%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -80%) scale(0.9); opacity: 0; }
+}
+
+/* The glove jabs in from the left and recoils - POW. */
+.store-fx-glove {
+  animation: store-fx-punch 0.7s ease-out forwards;
+}
+
+@keyframes store-fx-punch {
+  0% { transform: translate(-160%, -50%) scale(0.6) rotate(-18deg); opacity: 0; }
+  35% { transform: translate(-50%, -50%) scale(1.35) rotate(0); opacity: 1; }
+  50% { transform: translate(-42%, -50%) scale(1.1); }
+  65% { transform: translate(-50%, -50%) scale(1.2); }
+  100% { transform: translate(-50%, -55%) scale(1); opacity: 0; }
+}
+
+/* The tomato drops and squishes flat. */
+.store-fx-tomato {
+  animation: store-fx-splat 0.8s ease-out forwards;
+}
+
+@keyframes store-fx-splat {
+  0% { transform: translate(-50%, -190%) scale(0.5); opacity: 0; }
+  45% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  58% { transform: translate(-50%, -48%) scale(1.3, 0.65); }
+  100% { transform: translate(-50%, -48%) scale(1.15, 0.85); opacity: 0; }
+}
+
+/* The crown descends and settles. */
+.store-fx-crown {
+  animation: store-fx-drop 1s ease-out forwards;
+}
+
+@keyframes store-fx-drop {
+  0% { transform: translate(-50%, -260%) scale(0.8); opacity: 0; }
+  45% { transform: translate(-50%, -72%) scale(1.1); opacity: 1; }
+  62% { transform: translate(-50%, -58%) scale(1); }
+  82% { transform: translate(-50%, -58%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -58%) scale(1); opacity: 0; }
+}
+
+@keyframes store-hit-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px) rotate(-4deg); }
+  40% { transform: translateX(4px) rotate(4deg); }
+  60% { transform: translateX(-3px) rotate(-2deg); }
+  80% { transform: translateX(2px); }
+}
+
+/* Transient hint / error toast shown by storeActions.js (pick prompts, cooldown messages). */
+.store-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(5rem + env(safe-area-inset-bottom));
+  transform: translateX(-50%) translateY(10px);
+  z-index: 96;
+  max-width: 80vw;
+  padding: 0.5rem 0.9rem;
+  background: var(--glass-bg-strong);
+  border: 2px solid var(--glass-border);
+  border-radius: 14px;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-soft);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+}
+
+.store-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@keyframes store-fx-fade {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .store-fx,
+  .store-fx-glove,
+  .store-fx-tomato,
+  .store-fx-crown {
+    animation: store-fx-fade 0.9s ease forwards;
+  }
+  body.store-picking [data-player],
+  [data-player].store-hit {
+    animation: none;
+  }
+}

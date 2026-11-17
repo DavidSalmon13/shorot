@@ -51,6 +51,10 @@
        shared/dom.js), independent of whichever game is active. Floating reactions render
        into reaction-float-layer, a full-viewport overlay so they aren't clipped by the row. -->
   <div id="reaction-row" class="reaction-row hidden"></div>
+  <!-- Store consumable tray: a signed-in player's owned gags (🥊 etc). Empty rows collapse
+       via CSS (:empty), so guests / players with no charges see nothing. See
+       js/shared/storeActions.js and docs/specs/store-specs.md. -->
+  <div id="store-action-row" class="store-action-row hidden"></div>
   <!-- Bluff side-bet offers pop in here (see showOfferToast in js/games/bluff.js). -->
   <div id="bet-offer-toasts" class="bet-offer-toasts" aria-live="polite"></div>
   <!-- Bluff's full-screen "are the called cards there?" reveal (see js/games/bluff.js). Lives
@@ -69,6 +73,8 @@
     <div id="bf-reveal-confetti" class="bf-reveal-confetti" aria-hidden="true"></div>
   </div>
   <div id="reaction-float-layer" class="reaction-float-layer" aria-hidden="true"></div>
+  <!-- Store action gags (🥊/🍅/🎺...) render over the target avatar here (see storeActions.js). -->
+  <div id="store-fx-layer" class="store-fx-layer" aria-hidden="true"></div>
 
   <main class="app-main">
     <section id="join-screen" class="screen">

@@ -18,6 +18,7 @@ import { confirmDialog } from './shared/confirmDialog.js';
 import { emojiForName } from './shared/playerEmoji.js';
 import { initAccount, refreshCard, onLockedStickers, openPlayerCard } from './shared/account.js';
 import { initReactions } from './shared/reactions.js';
+import { initStore, refreshStore } from './shared/storeActions.js';
 import { initInstallButtons } from './shared/installApp.js';
 import { applyCosmetics, applyMyBoardSkin } from './shared/cosmetics.js';
 
@@ -494,6 +495,8 @@ function renderLobby(players, scoreboard, playerStickers, playerSignedIn, player
       avatar.className = 'player-emoji';
       avatar.textContent = emojiForName(n);
     }
+    // Store action target anchor: storeActions.js lands gags on [data-player] avatars.
+    avatar.dataset.player = n;
     if (playerSignedIn && playerSignedIn[n]) {
       avatar.classList.add('player-avatar-signedin');
       avatar.setAttribute('role', 'button');
@@ -583,6 +586,9 @@ function handleJoinResult(res, name) {
   haptics.success();
   rememberSession(name, res.roomCode);
   applyBackground(res.background || null);
+  // Resync the store tray to this account's inventory (it may have changed on the account
+  // page since load, and a guest->signed-in join needs the tray to appear).
+  refreshStore();
   routeFromJoin(res);
 }
 
@@ -682,6 +688,7 @@ stickerBtn.addEventListener('click', () => {
 
 initAccount(getClientId, socket);
 initReactions(socket);
+initStore(socket, { getMyName });
 
 function chooseGame(game) {
   flashChooseError('');

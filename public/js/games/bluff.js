@@ -312,6 +312,8 @@ function renderBfSeats(seats, { tappable, highlightName } = {}) {
 
     const avatar = document.createElement(canTap ? 'button' : 'div');
     avatar.className = 'bf-seat-avatar';
+    // Store action target anchor (storeActions.js lands gags on [data-player] avatars).
+    avatar.dataset.player = seat.name;
     if (seat.signedIn) avatar.classList.add('bf-seat-avatar-signedin');
     if (canTap) {
       avatar.type = 'button';
