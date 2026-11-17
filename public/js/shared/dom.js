@@ -6,6 +6,7 @@ const generatingTitle = document.getElementById('generating-title');
 const generatingSubtitle = document.getElementById('generating-subtitle');
 const bgControls = document.getElementById('bg-controls');
 const reactionRow = document.getElementById('reaction-row');
+const storeActionRow = document.getElementById('store-action-row');
 
 export const screens = {
   join: document.getElementById('join-screen'),
@@ -38,6 +39,9 @@ export function showScreen(name) {
   const atEntry = name === 'join' || name === 'restoring';
   bgControls.classList.toggle('hidden', atEntry);
   if (reactionRow) reactionRow.classList.toggle('hidden', atEntry);
+  // The store tray hides on entry screens too; when shown, it still collapses via :empty
+  // (CSS) for guests / players with no charges.
+  if (storeActionRow) storeActionRow.classList.toggle('hidden', atEntry);
 }
 
 export function showGenerating(game) {
