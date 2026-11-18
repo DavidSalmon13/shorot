@@ -204,6 +204,14 @@ function onEffect(payload) {
   next();
 }
 
+/**
+ * Plays a moment on this screen only - the Store tab's "Preview" button, so a player can
+ * see what Grand Entrance / Winner's Podium look like (and confirm their phone shows them).
+ */
+export function previewCosmeticEffect(payload) {
+  onEffect(payload);
+}
+
 export function initCosmeticEffects(socket) {
   if (!socket) return;
   socket.on('cosmeticEffect', onEffect);

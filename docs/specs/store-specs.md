@@ -74,8 +74,8 @@ always a reason to earn more tokens. Running out just means buying more; there's
 | **Avatar Frame Pack** | 14400 | Unlocks four animated frames (shimmering gold, pulsing neon, flickering flames with a 🔥, a bobbing 👑 crown); equip one as a thick glowing ring around your avatar everywhere you appear |
 | **Name Color & Glow** | 9600 | Unlocks a set of bold, strongly glowing name colors (rainbow flows); equip one to color your name |
 | **Vanity Title** | 7200 | Unlocks a set of titles ("The Bluffer", "High Roller", …); the equipped one shows next to your name as a shining gold plaque |
-| **Winner's Podium** | 18000 | When you win a game, every phone in the room gets a full-screen celebration: confetti rain, fireworks, "🏆 <name> wins!", and your row pulses gold |
-| **Grand Entrance** | 10800 | When you join, every phone in the room gets a full-screen "✨ Grand Entrance ✨ <name> has arrived" moment (spotlight, sparkle burst, your name color + title), and your lobby row glows; at most once per 2 minutes per player |
+| **Winner's Podium** | 18000 | When you win a game, every phone in the room gets a full-screen celebration: confetti rain, fireworks, "🏆 <name> wins!", and your row pulses gold. A ▶ Preview button on the Store card plays it locally |
+| **Grand Entrance** | 10800 | When you join, every phone in the room gets a full-screen "✨ Grand Entrance ✨ <name> has arrived" moment (spotlight, sparkle burst, your name color + title), and your lobby row glows; at most once per 30 seconds per player. A ▶ Preview button on the Store card plays it locally |
 | **Table Skin: Midnight** | 24000 | A deep night-sky backdrop with a star field behind the panels (personal: only the owner sees it) |
 | **Premium Sticker Pack** | 12000 | Unlocks a set of premium stickers in the existing sticker chooser |
 

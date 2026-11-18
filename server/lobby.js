@@ -113,7 +113,8 @@ function connectedCosmetics(room) {
 // room gets a short full-screen "X has arrived" moment (public/js/shared/cosmeticEffects.js).
 // Fired after refreshRatings so the freshly loaded cosmetics are on the player. Throttled per
 // player so a flaky phone that keeps reconnecting doesn't replay it every few seconds.
-const ENTRANCE_REPEAT_MS = 2 * 60 * 1000;
+// Each one that fires is logged to the admin activity feed (/admin).
+const ENTRANCE_REPEAT_MS = 30 * 1000;
 
 function announceEntrance(roomCode, room, name) {
   const p = room.players.get(name);
@@ -121,6 +122,7 @@ function announceEntrance(roomCode, room, name) {
   const now = Date.now();
   if (p.lastEntranceAt && now - p.lastEntranceAt < ENTRANCE_REPEAT_MS) return;
   p.lastEntranceAt = now;
+  logActivity('store', `✨ Grand Entrance played for ${name}`);
   roomEmit(roomCode, 'cosmeticEffect', { kind: 'entrance', name, cosmetics: p.cosmetics });
 }
 

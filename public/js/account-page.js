@@ -13,6 +13,7 @@
 import { confirmDialog } from './shared/confirmDialog.js';
 import { GAME_LABELS, renderBadges, renderRivals } from './shared/cardRender.js';
 import { applyCosmetics, TITLE_LABELS } from './shared/cosmetics.js';
+import { previewCosmeticEffect } from './shared/cosmeticEffects.js';
 
 const STATS = ['SPD', 'COM', 'STR', 'TAC', 'NRV', 'DEC'];
 
@@ -252,6 +253,26 @@ function variantRow(item) {
   return wrap;
 }
 
+// Grand Entrance / Winner's Podium are room-wide moments, so the Store lets anyone play
+// them locally first - to see what they're buying, or to check their phone shows them.
+const PREVIEWABLE = new Set(['entrance.grand', 'podium.confetti']);
+
+function previewButton(item) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'store-variant store-preview-btn';
+  btn.textContent = '▶ Preview';
+  btn.addEventListener('click', () => {
+    const me = (cardNameEl && cardNameEl.textContent.trim()) || 'You';
+    if (item.id === 'entrance.grand') {
+      previewCosmeticEffect({ kind: 'entrance', name: me, cosmetics: storeData.equipped || {} });
+    } else {
+      previewCosmeticEffect({ kind: 'podium', names: [me] });
+    }
+  });
+  return btn;
+}
+
 function renderStore() {
   if (!storeData) return;
   storeBalanceEl.textContent = `🪙 ${storeData.balance} token${storeData.balance === 1 ? '' : 's'}`;
@@ -271,6 +292,7 @@ function renderStore() {
     desc.className = 'store-card-desc';
     desc.textContent = item.description;
     card.append(icon, name, desc);
+    if (PREVIEWABLE.has(item.id)) card.append(previewButton(item));
 
     if (item.type === 'consumable') {
       const qty = document.createElement('div');

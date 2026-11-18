@@ -140,6 +140,7 @@ const ctx = {
     // lands on top of the game-over screen rather than racing it.
     const podiumWinners = winners.filter((n) => room.players.get(n)?.cosmetics?.podium);
     if (roomCode && podiumWinners.length) {
+      logActivity('store', `🏆 Winner's Podium played for ${podiumWinners.join(', ')}`);
       setTimeout(
         () => roomEmit(roomCode, 'cosmeticEffect', { kind: 'podium', names: podiumWinners }),
         PODIUM_DELAY_MS
