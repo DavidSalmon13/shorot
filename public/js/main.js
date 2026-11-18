@@ -19,6 +19,7 @@ import { emojiForName } from './shared/playerEmoji.js';
 import { initAccount, refreshCard, onLockedStickers, openPlayerCard } from './shared/account.js';
 import { initReactions } from './shared/reactions.js';
 import { initStore, refreshStore } from './shared/storeActions.js';
+import { initCosmeticEffects } from './shared/cosmeticEffects.js';
 import { initInstallButtons } from './shared/installApp.js';
 import { applyCosmetics, applyMyBoardSkin } from './shared/cosmetics.js';
 
@@ -513,7 +514,7 @@ function renderLobby(players, scoreboard, playerStickers, playerSignedIn, player
     label.textContent = n === currentHostName ? `${n} (host)` : n;
     li.appendChild(avatar);
     li.appendChild(label);
-    // Equipped cosmetics (frame/name color/title/entrance) for signed-in players - a no-op
+    // Equipped cosmetics (frame/name color/title) for signed-in players - a no-op
     // for anyone without any. Done before the mini-card/kick button so the title chip trails
     // the name, not the row's trailing controls.
     applyCosmetics({ avatar, name: label, row: li }, playerCosmetics && playerCosmetics[n]);
@@ -689,6 +690,7 @@ stickerBtn.addEventListener('click', () => {
 initAccount(getClientId, socket);
 initReactions(socket);
 initStore(socket, { getMyName });
+initCosmeticEffects(socket);
 
 function chooseGame(game) {
   flashChooseError('');

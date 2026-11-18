@@ -109,6 +109,21 @@ function connectedCosmetics(room) {
   return out;
 }
 
+// Grand Entrance (store cosmetic): when a player who has it equipped joins, everyone in the
+// room gets a short full-screen "X has arrived" moment (public/js/shared/cosmeticEffects.js).
+// Fired after refreshRatings so the freshly loaded cosmetics are on the player. Throttled per
+// player so a flaky phone that keeps reconnecting doesn't replay it every few seconds.
+const ENTRANCE_REPEAT_MS = 2 * 60 * 1000;
+
+function announceEntrance(roomCode, room, name) {
+  const p = room.players.get(name);
+  if (!p || !p.connected || !p.signedIn || !p.cosmetics || !p.cosmetics.entrance) return;
+  const now = Date.now();
+  if (p.lastEntranceAt && now - p.lastEntranceAt < ENTRANCE_REPEAT_MS) return;
+  p.lastEntranceAt = now;
+  roomEmit(roomCode, 'cosmeticEffect', { kind: 'entrance', name, cosmetics: p.cosmetics });
+}
+
 // Looks up the overall rating + tier for the named signed-in players and re-broadcasts
 // the lobby if any changed. Cached on the player (not fetched per lobbyUpdate) because
 // ratings only move when a game is recorded: called on join and on every return to the
@@ -509,7 +524,11 @@ function registerLobbyHandlers(socket) {
     joinExistingRoom(socket, SHARED_ROOM_CODE, name, clientId, (res) => {
       if (res && res.ok) {
         stats.recordPlayer(clientId, connectedNames(room).length);
-        if (userId) refreshRatings(SHARED_ROOM_CODE, room, [name]).catch(() => {});
+        if (userId) {
+          refreshRatings(SHARED_ROOM_CODE, room, [name])
+            .then(() => announceEntrance(SHARED_ROOM_CODE, room, name))
+            .catch(() => {});
+        }
       }
       callback(res);
     }, sticker, userId);

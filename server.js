@@ -96,6 +96,9 @@ app.post('/api/stickers', express.raw({ type: 'image/*', limit: '2mb' }), (req, 
   res.json({ ok: true, sticker: result.id });
 });
 
+// How long after a game result the Winner's Podium celebration fires (see recordGameResult).
+const PODIUM_DELAY_MS = 1200;
+
 const BACKGROUND_MIME_EXT = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -132,6 +135,16 @@ const ctx = {
     const winners = participants.filter((p) => p.won).map((p) => p.name);
     logActivity('result', `${gameType} finished${winners.length ? ` - won: ${winners.join(', ')}` : ''}`);
     const roomCode = [...rooms.entries()].find(([, r]) => r === room)?.[0] || '';
+    // Winner's Podium (store cosmetic): winners who have it equipped get a full-screen
+    // confetti + fireworks celebration on every phone in the room. Delayed a beat so it
+    // lands on top of the game-over screen rather than racing it.
+    const podiumWinners = winners.filter((n) => room.players.get(n)?.cosmetics?.podium);
+    if (roomCode && podiumWinners.length) {
+      setTimeout(
+        () => roomEmit(roomCode, 'cosmeticEffect', { kind: 'podium', names: podiumWinners }),
+        PODIUM_DELAY_MS
+      );
+    }
     accounts.recordGameResult({
       roomCode,
       gameType,

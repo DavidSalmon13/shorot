@@ -349,6 +349,11 @@ function clearCosmeticClasses(el) {
 }
 function applyCardCosmetics() {
   clearCosmeticClasses(cardStickerEl);
+  // A framed sticker photo is wrapped (see applyCosmetics) - clear the wrapper's frame too.
+  const wrap = cardStickerEl.parentElement;
+  if (wrap && wrap.classList.contains('cosmetic-avatar-wrap')) {
+    [...wrap.classList].forEach((c) => c.startsWith('cosmetic-frame') && wrap.classList.remove(c));
+  }
   clearCosmeticClasses(cardNameEl);
   const oldChip = cardNameEl.parentElement && cardNameEl.parentElement.querySelector('.cosmetic-title');
   if (oldChip) oldChip.remove();

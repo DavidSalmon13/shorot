@@ -71,18 +71,19 @@ always a reason to earn more tokens. Running out just means buying more; there's
 
 | Item | Price | What it does |
 |---|---|---|
-| **Avatar Frame Pack** | 14400 | Unlocks four decorative frames (gold, neon, flames, crown); equip one as a ring around your avatar everywhere you appear |
-| **Name Color & Glow** | 9600 | Unlocks a set of name colors/glows; equip one to tint your name |
-| **Vanity Title** | 7200 | Unlocks a set of titles ("The Bluffer", "High Roller", …); the equipped one shows under your name |
-| **Winner's Podium** | 18000 | A confetti/fireworks burst on your icon when you win a game |
-| **Grand Entrance** | 10800 | An animated flourish when you appear in the lobby roster |
-| **Table Skin: Midnight** | 24000 | A premium board/table skin, applied through the app's theme layer |
+| **Avatar Frame Pack** | 14400 | Unlocks four animated frames (shimmering gold, pulsing neon, flickering flames with a 🔥, a bobbing 👑 crown); equip one as a thick glowing ring around your avatar everywhere you appear |
+| **Name Color & Glow** | 9600 | Unlocks a set of bold, strongly glowing name colors (rainbow flows); equip one to color your name |
+| **Vanity Title** | 7200 | Unlocks a set of titles ("The Bluffer", "High Roller", …); the equipped one shows next to your name as a shining gold plaque |
+| **Winner's Podium** | 18000 | When you win a game, every phone in the room gets a full-screen celebration: confetti rain, fireworks, "🏆 <name> wins!", and your row pulses gold |
+| **Grand Entrance** | 10800 | When you join, every phone in the room gets a full-screen "✨ Grand Entrance ✨ <name> has arrived" moment (spotlight, sparkle burst, your name color + title), and your lobby row glows; at most once per 2 minutes per player |
+| **Table Skin: Midnight** | 24000 | A deep night-sky backdrop with a star field behind the panels (personal: only the owner sees it) |
 | **Premium Sticker Pack** | 12000 | Unlocks a set of premium stickers in the existing sticker chooser |
 
 Frame / Name Color / Vanity Title are "packs": buying unlocks a small family of looks, and you pick
-which one is equipped. The three "ambient effect" cosmetics (Winner's Podium, Grand Entrance, Table
-Skin) are deliberately lightweight in v1 — short CSS/particle effects reusing the existing reactions
-and theme machinery, not a per-game rework. The Premium Sticker Pack plugs into the existing
+which one is equipped. Everything in the store is meant to be noticed across the room: Winner's Podium and
+Grand Entrance are room-wide moments the server broadcasts as `cosmeticEffect` (`server.js`
+recordGameResult, `server/lobby.js` announceEntrance) and `public/js/shared/cosmeticEffects.js`
+plays on every phone; frames, name colors and titles are animated. Table Skin stays personal. The Premium Sticker Pack plugs into the existing
 sticker-unlock system rather than adding a parallel one.
 
 ### Consumable actions (6)

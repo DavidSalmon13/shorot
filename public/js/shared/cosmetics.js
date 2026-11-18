@@ -22,13 +22,28 @@ const BOARD_SKIN_CLASSES = ['boardskin-midnight'];
  * Decorates one player's rendered avatar/name with their equipped cosmetics.
  *   els.avatar - avatar element (the frame ring attaches here)
  *   els.name   - name text element (color/glow here; the title chip is inserted after it)
- *   els.row    - optional row/container (the entrance animation attaches here)
+ *   els.row    - optional row/container (unused; the Grand Entrance is a room-wide moment
+ *                played by cosmeticEffects.js when the server announces the arrival)
  */
 export function applyCosmetics(els, cosmetics, { title = true } = {}) {
   if (!cosmetics) return;
-  const { avatar, name, row } = els;
+  const { avatar, name } = els;
   if (avatar && cosmetics.frame) {
-    avatar.classList.add('cosmetic-frame', `cosmetic-frame-${cosmetics.frame}`);
+    // An <img> can't carry ::before/::after (the crown, the flames), so a sticker avatar is
+    // wrapped in a span that wears the frame instead. data-player stays on the avatar itself.
+    // Re-applying (the account page's live preview) reuses the existing wrapper.
+    let target = avatar;
+    const parent = avatar.parentNode;
+    if (avatar.tagName === 'IMG' && parent && parent.classList && parent.classList.contains('cosmetic-avatar-wrap')) {
+      target = parent;
+      [...target.classList].forEach((c) => c.startsWith('cosmetic-frame') && target.classList.remove(c));
+    } else if (avatar.tagName === 'IMG' && parent) {
+      target = document.createElement('span');
+      target.className = 'cosmetic-avatar-wrap';
+      parent.insertBefore(target, avatar);
+      target.appendChild(avatar);
+    }
+    target.classList.add('cosmetic-frame', `cosmetic-frame-${cosmetics.frame}`);
   }
   if (name && cosmetics.nameColor) {
     name.classList.add('cosmetic-name', `cosmetic-name-${cosmetics.nameColor}`);
@@ -40,7 +55,6 @@ export function applyCosmetics(els, cosmetics, { title = true } = {}) {
     chip.textContent = TITLE_LABELS[cosmetics.title];
     name.insertAdjacentElement('afterend', chip);
   }
-  if (row && cosmetics.entrance) row.classList.add('cosmetic-entrance');
 }
 
 /**
