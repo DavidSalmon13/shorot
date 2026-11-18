@@ -71,13 +71,13 @@ always a reason to earn more tokens. Running out just means buying more; there's
 
 | Item | Price | What it does |
 |---|---|---|
-| **Avatar Frame Pack** | 1200 | Unlocks four decorative frames (gold, neon, flames, crown); equip one as a ring around your avatar everywhere you appear |
-| **Name Color & Glow** | 800 | Unlocks a set of name colors/glows; equip one to tint your name |
-| **Vanity Title** | 600 | Unlocks a set of titles ("The Bluffer", "High Roller", …); the equipped one shows under your name |
-| **Winner's Podium** | 1500 | A confetti/fireworks burst on your icon when you win a game |
-| **Grand Entrance** | 900 | An animated flourish when you appear in the lobby roster |
-| **Table Skin: Midnight** | 2000 | A premium board/table skin, applied through the app's theme layer |
-| **Premium Sticker Pack** | 1000 | Unlocks a set of premium stickers in the existing sticker chooser |
+| **Avatar Frame Pack** | 14400 | Unlocks four decorative frames (gold, neon, flames, crown); equip one as a ring around your avatar everywhere you appear |
+| **Name Color & Glow** | 9600 | Unlocks a set of name colors/glows; equip one to tint your name |
+| **Vanity Title** | 7200 | Unlocks a set of titles ("The Bluffer", "High Roller", …); the equipped one shows under your name |
+| **Winner's Podium** | 18000 | A confetti/fireworks burst on your icon when you win a game |
+| **Grand Entrance** | 10800 | An animated flourish when you appear in the lobby roster |
+| **Table Skin: Midnight** | 24000 | A premium board/table skin, applied through the app's theme layer |
+| **Premium Sticker Pack** | 12000 | Unlocks a set of premium stickers in the existing sticker chooser |
 
 Frame / Name Color / Vanity Title are "packs": buying unlocks a small family of looks, and you pick
 which one is equipped. The three "ambient effect" cosmetics (Winner's Podium, Grand Entrance, Table

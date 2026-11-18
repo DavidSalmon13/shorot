@@ -35,13 +35,13 @@ const EQUIP_SLOTS = {
 
 const STORE_ITEMS = [
   // Permanent cosmetics - bought once, quantity stays 1, then equipped (equipping is free).
-  { id: 'frame.pack', type: 'cosmetic', slot: 'frame', price: 1200, icon: '🖼️', name: 'Avatar Frame Pack', description: 'Four frames - gold, neon, flames, crown - to ring your avatar everywhere you appear.' },
-  { id: 'namecolor.pack', type: 'cosmetic', slot: 'nameColor', price: 800, icon: '🎨', name: 'Name Color & Glow', description: 'Tint and glow your name in a color of your choice.' },
-  { id: 'title.pack', type: 'cosmetic', slot: 'title', price: 600, icon: '🏷️', name: 'Vanity Title', description: 'Wear a title under your name, like "The Bluffer" or "High Roller".' },
-  { id: 'podium.confetti', type: 'cosmetic', slot: 'podium', price: 1500, icon: '🎆', name: "Winner's Podium", description: 'Confetti and fireworks burst over you when you win a game.' },
-  { id: 'entrance.grand', type: 'cosmetic', slot: 'entrance', price: 900, icon: '✨', name: 'Grand Entrance', description: 'Make an animated entrance when you appear in the lobby.' },
-  { id: 'boardskin.midnight', type: 'cosmetic', slot: 'boardSkin', price: 2000, icon: '🌃', name: 'Table Skin: Midnight', description: 'A premium midnight skin for the table.' },
-  { id: 'stickerpack.premium', type: 'cosmetic', price: 1000, icon: '🌟', name: 'Premium Sticker Pack', description: 'Unlock a set of premium stickers in the sticker chooser.' },
+  { id: 'frame.pack', type: 'cosmetic', slot: 'frame', price: 14400, icon: '🖼️', name: 'Avatar Frame Pack', description: 'Four frames - gold, neon, flames, crown - to ring your avatar everywhere you appear.' },
+  { id: 'namecolor.pack', type: 'cosmetic', slot: 'nameColor', price: 9600, icon: '🎨', name: 'Name Color & Glow', description: 'Tint and glow your name in a color of your choice.' },
+  { id: 'title.pack', type: 'cosmetic', slot: 'title', price: 7200, icon: '🏷️', name: 'Vanity Title', description: 'Wear a title under your name, like "The Bluffer" or "High Roller".' },
+  { id: 'podium.confetti', type: 'cosmetic', slot: 'podium', price: 18000, icon: '🎆', name: "Winner's Podium", description: 'Confetti and fireworks burst over you when you win a game.' },
+  { id: 'entrance.grand', type: 'cosmetic', slot: 'entrance', price: 10800, icon: '✨', name: 'Grand Entrance', description: 'Make an animated entrance when you appear in the lobby.' },
+  { id: 'boardskin.midnight', type: 'cosmetic', slot: 'boardSkin', price: 24000, icon: '🌃', name: 'Table Skin: Midnight', description: 'A premium midnight skin for the table.' },
+  { id: 'stickerpack.premium', type: 'cosmetic', price: 12000, icon: '🌟', name: 'Premium Sticker Pack', description: 'Unlock a set of premium stickers in the sticker chooser.' },
 
   // Consumable actions - charges, spent per use, broadcast to the room as a ~1s gag.
   { id: 'taunt', type: 'consumable', target: 'other', price: 10, icon: '😂', name: 'Taunt Burst', description: "Pop a laughing burst over another player's icon." },
