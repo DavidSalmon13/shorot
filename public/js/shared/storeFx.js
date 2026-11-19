@@ -13,6 +13,7 @@
 
 import { sfx, haptic } from '../fx.js';
 import { emojiForName } from './playerEmoji.js';
+import { preloadSpank3d, spank3dReady, playSpank3d } from './spank3d.js';
 
 const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const CONFETTI_COLORS = ['#c6ff4a', '#a78bfa', '#ff6b9a', '#ffd84a', '#4ad9ff', '#ff9f4a'];
@@ -345,6 +346,31 @@ function buildSpank(stage, { fromName, targetName }) {
   // Keep the walker's start on screen.
   start.x = Math.max(FIG_W / 2 - target.x, Math.min(vw - FIG_W / 2 - target.x, start.x));
 
+  // Realistic 3D people when three.js + the model are loaded (playStoreFx waits for them);
+  // otherwise, or if WebGL fails, the drawn figures below.
+  if (spank3dReady() && !reducedMotion) {
+    try {
+      // Feet a bit below the icon (the 3D people are taller), kept fully on screen: the
+      // figures are ~45px either side of their feet and ~135px tall.
+      const vh = window.innerHeight;
+      const onX = (x) => Math.max(48, Math.min(vw - 48, x));
+      const onY = (y) => Math.max(150, Math.min(vh - 8, y));
+      const victimAt = { x: onX(target.x), y: onY(target.y + 34) };
+      const geo = {
+        face,
+        start: { x: onX(target.x + start.x), y: onY(target.y + start.y - FOOT_Y + 34) },
+        end: { x: victimAt.x + side * 50, y: victimAt.y },
+        victim: victimAt,
+      };
+      const faces = { walker: faceOf(fromName || targetName), victim: faceOf(targetName) };
+      const cleanup = playSpank3d(stage.parentElement, geo, faces, GAGS.spank.ms);
+      setTimeout(cleanup, GAGS.spank.ms);
+      return;
+    } catch (err) {
+      console.warn('3D Spanking failed, using the drawn version:', err);
+    }
+  }
+
   const victim = stickFigure(stage, 'st-victim', face, targetName);
   victim.style.transform = `translate(${-FIG_W / 2}px, ${FOOT_Y - FIG_H}px)`;
   const walker = stickFigure(stage, 'st-walker', face, fromName || targetName);
@@ -433,7 +459,7 @@ export function playStoreFx(layer, action) {
   if (!layer) return;
   const self = !action.fromName || action.fromName === action.targetName;
   if (self) {
-    playNow(layer, action);
+    prepare(action).then(() => playNow(layer, action));
     return;
   }
   const key = action.targetName;
@@ -443,14 +469,28 @@ export function playStoreFx(layer, action) {
   }
   queues.set(key, []);
   const next = (a) => {
-    const ms = playNow(layer, a);
-    setTimeout(() => {
-      const waiting = queues.get(key);
-      if (waiting && waiting.length) next(waiting.shift());
-      else queues.delete(key);
-    }, ms);
+    prepare(a).then(() => {
+      const ms = playNow(layer, a);
+      setTimeout(() => {
+        const waiting = queues.get(key);
+        if (waiting && waiting.length) next(waiting.shift());
+        else queues.delete(key);
+      }, ms);
+    });
   };
   next(action);
+}
+
+/**
+ * Anything a gag needs loaded before it starts. The 3D Spanking waits (up to 3s) for
+ * three.js + its model the first time; if they're slow or fail it plays the drawn version.
+ */
+function prepare(action) {
+  if (action.itemId !== 'spank' || reducedMotion || spank3dReady()) return Promise.resolve();
+  return Promise.race([
+    preloadSpank3d().catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, 3000)),
+  ]);
 }
 
 /**

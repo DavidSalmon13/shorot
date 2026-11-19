@@ -12,6 +12,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Shorot" />
+  <!-- Lets three.js's add-ons (GLTFLoader...) import "three"; loaded only when a 3D gag plays. -->
+  <script type="importmap">{ "imports": { "three": "/vendor/three/build/three.module.min.js" } }</script>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="theme-afterglow.css" />
   <!-- Warfront styles, split by screen; keep this order (it is the cascade). -->

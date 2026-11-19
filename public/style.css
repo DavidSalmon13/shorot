@@ -6656,6 +6656,41 @@ body.store-picking [data-player] {
   100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
 }
 
+/* 🍑 Spanking in 3D (spank3d.js): a see-through full-screen canvas the two 3D people are
+   rendered into, with the players' faces as HTML that follows each head bone. */
+.sfx-3d {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.5s;
+}
+
+.sfx-3d canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.sfx-3d.sfx-3d-out { opacity: 0; }
+
+.sfx-3d-face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+  will-change: transform;
+}
+
+.sfx-3d-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 /* 👑 Crown: a golden halo, the crown floats down and sits there, sparkles all around. */
 .sfx-halo {
   width: calc(var(--size) * 1.8);
