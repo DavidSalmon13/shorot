@@ -106,6 +106,19 @@ function confettiRain(host, count) {
   }
 }
 
+/**
+ * Shrinks a big announcement name until it fits on one line across the screen, so a long
+ * name is never cut or broken mid-word. Call once it's in the DOM.
+ */
+function fitName(nameEl) {
+  const max = Math.min(window.innerWidth, 480) - 32 - 56; // screen gutter + banner padding
+  let size = parseFloat(getComputedStyle(nameEl).fontSize);
+  while (nameEl.scrollWidth > max && size > 14) {
+    size -= 1;
+    nameEl.style.fontSize = `${size}px`;
+  }
+}
+
 function playEntrance({ name, cosmetics }, done) {
   const host = getLayer();
   const stage = el('div', 'cfx-stage cfx-entrance');
@@ -123,6 +136,7 @@ function playEntrance({ name, cosmetics }, done) {
   stage.appendChild(banner);
   sparkleBurst(stage, 26);
   host.appendChild(stage);
+  fitName(nameEl);
 
   // Their lobby row (if on screen) glows for a while after the banner fades.
   const anchor = document.querySelector(`[data-player="${cssEscape(name)}"]`);
@@ -152,10 +166,16 @@ function playPodium({ names }, done) {
 
   const banner = el('div', 'cfx-banner');
   banner.appendChild(el('div', 'cfx-trophy', '🏆'));
-  banner.appendChild(el('div', 'cfx-name', names.join(' & ')));
+  // One line per winner, so a tie of long names still reads in full.
+  const nameEls = names.map((n) => el('div', 'cfx-name', n));
+  nameEls.forEach((n, i) => {
+    if (i > 0) banner.appendChild(el('div', 'cfx-and', '&'));
+    banner.appendChild(n);
+  });
   banner.appendChild(el('div', 'cfx-sub', names.length > 1 ? 'win!' : 'wins!'));
   stage.appendChild(banner);
   host.appendChild(stage);
+  nameEls.forEach(fitName);
 
   // Winners on screen get a gold pulse too.
   for (const n of names) {

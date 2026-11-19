@@ -106,7 +106,7 @@
 :is(#wf-team-screen) .wf .wf-join-blue { color: #fff; background: linear-gradient(180deg, #4f93ff, #1d4fb0); box-shadow: inset 0 0 0 1px #b3d0ff; }
 :is(#wf-team-screen) .wf .slot.wf-you { box-shadow: inset 0 0 0 1px #b57cff; }
 :is(#wf-team-screen) .wf .slot .wf-pname { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
-:is(#wf-team-screen) .wf .slot .wf-pname > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; }
+:is(#wf-team-screen) .wf .slot .wf-pname > span:first-child { text-transform: uppercase; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.15; }
 :is(#wf-team-screen) .wf .slot .wf-prace { font-size: 9px; letter-spacing: .16em; color: #8fa3b5; }
 :is(#wf-team-screen) .wf .slot .wf-prace.wf-none { color: #ffcc33; }
 :is(#wf-team-screen) .wf .mbtn:disabled, :is(#wf-team-screen) .wf .mbtn.wf-on { opacity: .45; cursor: default; }
