@@ -359,6 +359,27 @@ test('betPlaceGlobal: a signed-in player places a bet on an open window end to e
   assert.equal(room.state.betting.globalWindows.start.responded.has('Ann'), true);
 });
 
+test('the match-start bet window closes once round 1 loser is picked', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.method(db, 'isEnabled', () => true);
+  t.mock.method(db, 'query', async () => ({ rows: [] }));
+  t.mock.method(db, 'transaction', async (fn) => fn({ query: async () => ({ rows: [], rowCount: 1 }) }));
+  const { ctx } = createTestCtx();
+  const room = createRoom(ctx, 'AAAA', ['Ann', 'Bob'], { game: 'bluff', phase: 'seating' });
+  addPlayer(room, 'Ann', { userId: 1 });
+  addPlayer(room, 'Bob', { userId: 2 });
+  const host = registerGame(bluff, ctx, makeHandlerSocket('AAAA', 'Ann'));
+  const bob = registerGame(bluff, ctx, makeHandlerSocket('AAAA', 'Bob'));
+  await call(host, 'startBluffMatch');
+  assert.equal((await call(host, 'betPlaceGlobal', { trigger: 'start', pick: 'Ann', stake: 50 })).ok, true);
+
+  assert.equal((await call(host, 'bfSelectLoser', { name: 'Bob' })).ok, true);
+  const late = await call(bob, 'betPlaceGlobal', { trigger: 'start', pick: 'Bob', stake: 50 });
+  assert.equal(late.ok, false);
+  // Ann's already-placed bet still has its window to resolve against at match end.
+  assert.ok(room.state.betting.globalWindows.start);
+});
+
 test('betProposeSide then betAcceptSide locks in a side bet and clears the proposal, end to end', async (t) => {
   t.mock.method(db, 'isEnabled', () => true);
   t.mock.method(db, 'query', async () => ({ rows: [{ balance: 500 }] }));

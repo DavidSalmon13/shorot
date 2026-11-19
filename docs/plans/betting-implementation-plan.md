@@ -183,6 +183,9 @@ Notes:
    `applyBluffLoss`, right after pushing onto `bfEliminationOrder`, calls
    `ctx.betting.openGlobalBetWindow(room, roomCode, { trigger: 'elimination:' + name, offerTo: [name], eligible: activeBluffPlayers(room) })`
    — note `offerTo` is just the one newly-eliminated player, not the table.
+   The `'start'` window only takes bets during round 1: `applyBluffLoss` calls
+   `betting.closeGlobalBetWindow(room, 'start')` on every loser pick, so once round 1's
+   loser is picked no new start bets are offered; already-placed ones still resolve at match end.
 2. Window state lives on the room (new, unpersisted fields — see §6), keyed by
    trigger id, holding `eligible` (frozen at open time, used for the payout formula)
    and which of `offerTo` have already placed or dismissed.

@@ -127,6 +127,16 @@ function openGlobalBetWindow(room, roomCode, { trigger, offerTo, eligible }) {
 }
 
 /**
+ * Stops a global bet window from taking new bets (e.g. Bluff's 'start' window once round 1
+ * ends). Bets already placed on it stay live and still resolve at match end - the window's
+ * frozen `eligible` is kept for the payout formula. No-op if the window doesn't exist.
+ */
+function closeGlobalBetWindow(room, trigger) {
+  const window = bettingState(room).globalWindows[trigger];
+  if (window) window.closed = true;
+}
+
+/**
  * Payout multiplier for each pick in a global-bet window: `{ name: odds }`, odds rounded
  * down to one decimal. A pick's win chance is ODDS_CARDS_WEIGHT of their share of the
  * cards still in play plus ODDS_RATING_WEIGHT of their share of overall rating, and the
@@ -175,7 +185,7 @@ function payoutFor(stake, odds) {
 async function placeGlobalBet(room, roomCode, { playerName, userId, trigger, pick, stake, oddsInputs, odds: shownOdds }) {
   if (!isEnabled()) return { ok: false, error: 'Betting is not enabled' };
   const window = bettingState(room).globalWindows[trigger];
-  if (!window) return { ok: false, error: 'That bet window is no longer open' };
+  if (!window || window.closed) return { ok: false, error: 'That bet window is no longer open' };
   if (!window.offerTo.includes(playerName)) return { ok: false, error: 'That bet was not offered to you' };
   if (window.responded.has(playerName)) return { ok: false, error: 'You already placed a bet on this' };
   if (!window.eligible.includes(pick)) return { ok: false, error: 'That pick is not eligible' };
@@ -491,7 +501,7 @@ function nameForUserId(room, userId) {
  * with the odds each pick would get right now. */
 function openWindowsFor(room, viewerName, oddsInputs) {
   return Object.entries(bettingState(room).globalWindows)
-    .filter(([, w]) => w.offerTo.includes(viewerName) && !w.responded.has(viewerName))
+    .filter(([, w]) => !w.closed && w.offerTo.includes(viewerName) && !w.responded.has(viewerName))
     .map(([trigger, w]) => ({ trigger, eligible: w.eligible.slice(), odds: computeGlobalOdds(w.eligible, oddsInputs) }));
 }
 
@@ -608,6 +618,7 @@ module.exports = {
   grantDailyIfNeeded,
   getBalance,
   openGlobalBetWindow,
+  closeGlobalBetWindow,
   placeGlobalBet,
   resolveGlobalBets,
   proposeSideBet,

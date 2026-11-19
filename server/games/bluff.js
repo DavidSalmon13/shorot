@@ -303,6 +303,9 @@ function applyBluffLoss(ctx, roomCode, room, name) {
     });
   }
   room.state.bluff.lastResult = { loserName: name, newCount, eliminated };
+  // The match-winner bet offered at Start Match is only open during round 1 - once
+  // round 1's loser is picked, no new bets; bets already placed still resolve at match end.
+  betting.closeGlobalBetWindow(room, 'start');
   // Fire-and-forget, same principle as every other betting call here - never awaited,
   // never blocks the round transition below.
   ctx.betting.resolveSideBets(room, roomCode, { roundNumber: room.state.bluff.roundNumber, loserName: name });
