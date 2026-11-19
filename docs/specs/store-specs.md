@@ -64,7 +64,7 @@ always a reason to earn more tokens. Running out just means buying more; there's
 
 ## The catalog
 
-13 items in v1. Ids are stable and namespaced; prices are in tokens.
+16 items (13 in v1, plus the Water Balloon, Pie and Lightning gags). Ids are stable and namespaced; prices are in tokens.
 
 ### Permanent cosmetics (7)
 
@@ -85,7 +85,7 @@ recordGameResult, `server/lobby.js` announceEntrance) and `public/js/shared/cosm
 plays on every phone; frames, name colors and titles are animated. Table Skin stays personal. The Premium Sticker Pack plugs into the existing
 sticker-unlock system rather than adding a parallel one.
 
-### Consumable actions (6)
+### Consumable actions (9)
 
 | Item | Price / charge | Target | Show (self-resets) |
 |---|---|---|---|
@@ -95,6 +95,9 @@ sticker-unlock system rather than adding a parallel one.
 | 🍅 **Tomato Throw** | 80 | another player | ~5s: a tomato is lobbed in an arc and splats, juice flies, a red splat with drips stays on their icon; their icon shakes |
 | 🥊 **Boxing Glove** | 100 | another player | ~4.5s: a glove winds up and smashes in with an impact flash and a comic "POW!", then dizzy stars orbit their head and a 🩹 stays on; their icon wobbles |
 | 👑 **Crown a Player** | 120 | another player | ~5s: a golden halo, a crown floats down and sits on their icon with sparkles, a royal fanfare; their icon glows |
+| 💦 **Water Balloon** | 60 | another player | ~4.5s: a wobbly balloon is lobbed in and bursts in a splash ring and droplets; their icon turns blue and shivers, drips and a puddle stay |
+| 🥧 **Pie in the Face** | 90 | another player | ~5s: a pie flies in and smacks flat; a blob of cream with a cherry slowly slides down their icon and drips off |
+| ⚡ **Lightning Strike** | 150 | another player | ~4.5s: a storm cloud, the whole screen flashes, a bolt strikes with "ZAP!" and sparks; their icon is left charred and smoking, with thunder |
 
 Every gag also shows a caption at the top of the screen ("🥊 Dana punched Yossi!") and plays a
 stronger vibration pattern. Things that fly in come from whichever side of the target has more room.

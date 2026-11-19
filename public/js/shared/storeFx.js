@@ -59,6 +59,30 @@ const GAGS = {
     haptic: [0, 300, 220],
     build: buildGlove,
   },
+  water_balloon: {
+    ms: 4600,
+    avatarClass: 'store-av-drenched',
+    caption: (from, to) => `💦 ${from} soaked ${to}!`,
+    sound: () => sfx.waterBalloon(),
+    haptic: [0, 500, 160, 60, 40],
+    build: buildWaterBalloon,
+  },
+  pie: {
+    ms: 4800,
+    avatarClass: 'store-av-shake',
+    caption: (from, to) => `🥧 ${from} pied ${to}!`,
+    sound: () => sfx.pie(),
+    haptic: [0, 380, 200],
+    build: buildPie,
+  },
+  lightning: {
+    ms: 4600,
+    avatarClass: 'store-av-charred',
+    caption: (from, to) => `⚡ ${from} struck ${to} with lightning!`,
+    sound: () => sfx.lightning(),
+    haptic: [0, 700, 60, 40, 60, 40, 300],
+    build: buildLightning,
+  },
   crown: {
     ms: 5200,
     avatarClass: 'store-av-glow',
@@ -158,6 +182,40 @@ function buildCrown(stage) {
       '--nx': `${Math.round(Math.random() * 90 - 45)}px`,
       '--ny': `${Math.round(Math.random() * 70 - 35)}px`,
     });
+  }
+}
+
+function buildWaterBalloon(stage) {
+  part(stage, 'sfx-balloon');
+  part(stage, 'sfx-splash-ring');
+  burst(stage, { count: 18, colors: ['#4ad9ff', '#8ee8ff', '#2aa8e0'], spread: 120, className: 'sfx-droplet', delay: 520 });
+  burst(stage, { count: 6, glyphs: ['💦', '💧'], spread: 110, delay: 540 });
+  part(stage, 'sfx-wet-sheen');
+  part(stage, 'sfx-puddle');
+  for (let i = 0; i < 7; i++) {
+    part(stage, 'sfx-wet-drip', '', { animationDelay: `${900 + i * 420}ms`, '--nx': `${-26 + (i % 4) * 17}px` });
+  }
+}
+
+function buildPie(stage) {
+  part(stage, 'sfx-pie', '🥧');
+  part(stage, 'sfx-cream');
+  for (let i = 0; i < 3; i++) {
+    part(stage, 'sfx-cream-drip', '', { animationDelay: `${900 + i * 500}ms`, '--nx': `${-18 + i * 18}px` });
+  }
+  part(stage, 'sfx-cherry', '🍒');
+  burst(stage, { count: 14, colors: ['#fffaf0', '#ffe9c7', '#fff'], spread: 100, className: 'sfx-cream-blob', delay: 480 });
+}
+
+function buildLightning(stage) {
+  part(stage, 'sfx-screen-flash');
+  part(stage, 'sfx-storm', '🌩️');
+  const bolt = part(stage, 'sfx-bolt');
+  bolt.innerHTML = '<svg viewBox="0 0 40 120" preserveAspectRatio="none" aria-hidden="true"><polygon points="24,0 6,58 20,58 10,120 36,46 21,46 32,0" /></svg>';
+  part(stage, 'sfx-zap', 'ZAP!');
+  burst(stage, { count: 10, glyphs: ['⚡', '✨'], spread: 110, delay: 450 });
+  for (let i = 0; i < 6; i++) {
+    part(stage, 'sfx-smoke', '💨', { animationDelay: `${1000 + i * 450}ms`, '--nx': `${-22 + (i % 3) * 22}px` });
   }
 }
 

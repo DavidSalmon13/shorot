@@ -177,6 +177,28 @@ export const sfx = {
     slide(160, 40, 0.35, { type: 'sine', gain: 0.35, delay: 0.32 });
     [0, 1, 2, 3].forEach((i) => tone(i % 2 ? 1760 : 2093, 0.08, { type: 'sine', gain: 0.05, delay: 0.9 + i * 0.16 }));
   },
+  // Whoosh, a rubbery pop, a big splash, then drips.
+  waterBalloon() {
+    noise(0.45, { gain: 0.06, freq: 2000, type: 'bandpass' });
+    slide(900, 300, 0.08, { type: 'square', gain: 0.08, delay: 0.5 });
+    noise(0.7, { gain: 0.35, delay: 0.52, freq: 3000 });
+    noise(0.5, { gain: 0.2, delay: 0.55, freq: 600 });
+    [0, 1, 2, 3, 4].forEach((i) => slide(1600 - i * 120, 900, 0.07, { type: 'sine', gain: 0.07, delay: 1.0 + i * 0.4 }));
+  },
+  // Whoosh, a soft creamy smack, a sad slide as it drips off.
+  pie() {
+    noise(0.4, { gain: 0.07, freq: 1800, type: 'bandpass' });
+    noise(0.3, { gain: 0.45, delay: 0.45, freq: 700 });
+    slide(200, 90, 0.25, { type: 'sine', gain: 0.25, delay: 0.45 });
+    slide(500, 180, 1.4, { type: 'triangle', gain: 0.05, delay: 1.2 });
+  },
+  // Electric crackle, a sharp crack, then rolling thunder.
+  lightning() {
+    [0, 1, 2, 3, 4, 5].forEach((i) => noise(0.05, { gain: 0.12, delay: i * 0.06, freq: 4000, type: 'highpass' }));
+    noise(0.2, { gain: 0.6, delay: 0.42, freq: 6000, type: 'highpass' });
+    noise(2.2, { gain: 0.5, delay: 0.5, freq: 260 });
+    slide(90, 30, 1.8, { type: 'sine', gain: 0.25, delay: 0.5 });
+  },
   // A royal fanfare with a shimmer on top.
   royal() {
     [392, 523, 659, 784].forEach((freq, i) => tone(freq, 0.16, { type: 'square', gain: 0.05, delay: i * 0.12 }));

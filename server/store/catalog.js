@@ -42,13 +42,17 @@ const STORE_ITEMS = [
   { id: 'boardskin.midnight', type: 'cosmetic', slot: 'boardSkin', price: 24000, icon: '🌃', name: 'Table Skin: Midnight', description: 'A premium midnight skin for the table.' },
   { id: 'stickerpack.premium', type: 'cosmetic', price: 12000, icon: '🌟', name: 'Premium Sticker Pack', description: 'Unlock a set of premium stickers in the sticker chooser.' },
 
-  // Consumable actions - charges, spent per use, broadcast to the room as a ~1s gag.
+  // Consumable actions - charges, spent per use, broadcast to the room as a 3-5s gag
+  // (public/js/shared/storeFx.js).
   { id: 'taunt', type: 'consumable', target: 'other', price: 10, icon: '😂', name: 'Taunt Burst', description: "Pop a laughing burst over another player's icon." },
   { id: 'fanfare', type: 'consumable', target: 'other', price: 40, icon: '🎺', name: 'Loser Fanfare', description: 'Play a sad-trombone over another player.' },
   { id: 'confetti_bomb', type: 'consumable', target: 'self', price: 50, icon: '💣', name: 'Confetti Self-Bomb', description: 'Rain confetti on your own icon.' },
+  { id: 'water_balloon', type: 'consumable', target: 'other', price: 60, icon: '💦', name: 'Water Balloon', description: 'Lob a water balloon - it bursts and leaves them dripping wet.' },
   { id: 'tomato', type: 'consumable', target: 'other', price: 80, icon: '🍅', name: 'Tomato Throw', description: "Splat a tomato on another player's icon." },
+  { id: 'pie', type: 'consumable', target: 'other', price: 90, icon: '🥧', name: 'Pie in the Face', description: 'Smack a cream pie onto another player. It slides off... slowly.' },
   { id: 'glove', type: 'consumable', target: 'other', price: 100, icon: '🥊', name: 'Boxing Glove', description: "Punch another player's icon. POW!" },
   { id: 'crown', type: 'consumable', target: 'other', price: 120, icon: '👑', name: 'Crown a Player', description: 'Drop a crown on another player - a nice one.' },
+  { id: 'lightning', type: 'consumable', target: 'other', price: 150, icon: '⚡', name: 'Lightning Strike', description: 'Call down a lightning bolt - flash, thunder, and a smoking, charred icon.' },
 ];
 
 const BY_ID = new Map(STORE_ITEMS.map((i) => [i.id, i]));
