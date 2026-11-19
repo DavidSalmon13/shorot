@@ -14,9 +14,6 @@
 // Anti-abuse timings for consumable actions, all in ms (see store-specs.md "Cooldowns"
 // and "Punch-back"). Tunable live-service-style numbers.
 const COOLDOWNS = {
-  ACTION_COOLDOWN_MS: 10000, // one action per actor (the main brake)
-  TARGET_THROTTLE_MS: 30000, // same actor -> same target again (anti-focus; longer than the
-  //                            per-actor brake on purpose, or it could never bite)
   TARGET_INCOMING_MS: 3000, // any action landing on a given target (caps pile-ons)
   PUNCHBACK_WINDOW_MS: 5000, // free retaliation window for a hit target
 };

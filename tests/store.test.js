@@ -287,40 +287,23 @@ test('consume: a failed write is swallowed into { ok: false }', async (t) => {
 
 // --- cooldowns (pure, in-memory) --------------------------------------------------------
 
-const { ACTION_COOLDOWN_MS, TARGET_THROTTLE_MS, TARGET_INCOMING_MS, PUNCHBACK_WINDOW_MS } = catalog.COOLDOWNS;
+const { TARGET_INCOMING_MS, PUNCHBACK_WINDOW_MS } = catalog.COOLDOWNS;
 
 test('canAct: a fresh actor may act', () => {
   const room = {};
   assert.deepEqual(store.canAct(room, { actor: 'Ann', target: 'Bo', now: 1000 }), { ok: true, retaliating: false });
 });
 
-test('canAct: the per-actor cooldown blocks a second action too soon', () => {
+test('canAct: no per-actor cooldown - an actor may fire again right away at someone else', () => {
   const room = {};
   store.recordAction(room, { actor: 'Ann', target: 'Bo', now: 1000 });
-  const res = store.canAct(room, { actor: 'Ann', target: 'Cy', now: 1000 + ACTION_COOLDOWN_MS - 1 });
-  assert.equal(res.ok, false);
-  assert.match(res.error, /Wait a moment/);
+  assert.equal(store.canAct(room, { actor: 'Ann', target: 'Cy', now: 1001 }).ok, true);
 });
 
-test('canAct: the per-actor cooldown clears after it elapses', () => {
+test('canAct: no same-target throttle - an actor may hit the same player again once the incoming window passes', () => {
   const room = {};
   store.recordAction(room, { actor: 'Ann', target: 'Bo', now: 1000 });
-  // A different target well past every window - should be clear.
-  const res = store.canAct(room, { actor: 'Ann', target: 'Cy', now: 1000 + TARGET_THROTTLE_MS + 1 });
-  assert.equal(res.ok, true);
-});
-
-test('canAct: same actor -> same target is throttled beyond the per-actor cooldown', () => {
-  const room = {};
-  store.recordAction(room, { actor: 'Ann', target: 'Bo', now: 1000 });
-  // Past the per-actor cooldown, but still inside the longer same-target throttle.
-  const now = 1000 + ACTION_COOLDOWN_MS + 1;
-  assert.ok(now - 1000 < TARGET_THROTTLE_MS); // sanity: the throttle is the binding limit here
-  const res = store.canAct(room, { actor: 'Ann', target: 'Bo', now });
-  assert.equal(res.ok, false);
-  assert.match(res.error, /pick someone else/);
-  // ...while a different target is fine at the same moment.
-  assert.equal(store.canAct(room, { actor: 'Ann', target: 'Cy', now }).ok, true);
+  assert.equal(store.canAct(room, { actor: 'Ann', target: 'Bo', now: 1000 + TARGET_INCOMING_MS + 1 }).ok, true);
 });
 
 test('canAct: a target hit by one actor is shielded from others briefly', () => {

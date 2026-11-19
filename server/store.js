@@ -215,8 +215,6 @@ function storeState(room) {
   if (!room.state) room.state = {};
   if (!room.state.store) {
     room.state.store = {
-      lastActionAt: {}, // actor -> ts of their last action
-      lastPairAt: {}, // "actor->target" -> ts
       lastTargetAt: {}, // target -> ts it was last hit by anyone
       punchback: {}, // target -> { from, until } a free retaliation it's owed
     };
@@ -225,9 +223,10 @@ function storeState(room) {
 }
 
 /**
- * Whether `actor` may fire a consumable action at `target` right now, honoring the three
- * cooldowns (D4) and the punch-back exception (D5). `selfTarget` actions (e.g. a confetti
- * self-bomb) skip the per-target/per-pair checks and only respect the per-actor rate limit.
+ * Whether `actor` may fire a consumable action at `target` right now: only the per-target
+ * incoming limit applies (the per-actor and same-target cooldowns were removed). `selfTarget`
+ * actions (e.g. a confetti self-bomb) are never limited. `retaliating` reports a punch-back
+ * (D5) at whoever just hit the actor.
  * `now` is injectable for tests. Pure: does NOT record anything - call recordAction on a
  * landed action. Returns `{ ok, retaliating }` or `{ ok: false, error }`.
  */
@@ -238,25 +237,14 @@ function canAct(room, { actor, target, selfTarget = false, now = Date.now() }) {
   const owed = s.punchback[actor];
   const retaliating = !selfTarget && !!owed && owed.from === target && now <= owed.until;
 
-  // `?? -Infinity` is the "never happened" sentinel: never-seen keys read as infinitely
-  // long ago, so a first action is always clear (a plain `|| 0` would wrongly gate the
-  // first ~10s of wall-clock epoch, and breaks small test timestamps).
-  if (!retaliating) {
-    const sinceAction = now - (s.lastActionAt[actor] ?? -Infinity);
-    if (sinceAction < COOLDOWNS.ACTION_COOLDOWN_MS) {
-      return { ok: false, error: 'Wait a moment before your next move' };
-    }
-  }
+  // `?? -Infinity` is the "never happened" sentinel: a never-hit target reads as hit
+  // infinitely long ago. The only limit left is per target: at most one gag lands on a
+  // player per TARGET_INCOMING_MS, whoever sends it. (Players may fire as often as they
+  // like and at the same person repeatedly - each costs a charge.)
   if (!selfTarget) {
     const sinceTarget = now - (s.lastTargetAt[target] ?? -Infinity);
     if (sinceTarget < COOLDOWNS.TARGET_INCOMING_MS) {
       return { ok: false, error: `${target} was just hit - give them a second` };
-    }
-    if (!retaliating) {
-      const sincePair = now - (s.lastPairAt[`${actor}->${target}`] ?? -Infinity);
-      if (sincePair < COOLDOWNS.TARGET_THROTTLE_MS) {
-        return { ok: false, error: `You just got ${target} - pick someone else` };
-      }
     }
   }
   return { ok: true, retaliating };
@@ -269,10 +257,8 @@ function canAct(room, { actor, target, selfTarget = false, now = Date.now() }) {
  */
 function recordAction(room, { actor, target, selfTarget = false, retaliating = false, now = Date.now() }) {
   const s = storeState(room);
-  s.lastActionAt[actor] = now;
   if (!selfTarget) {
     s.lastTargetAt[target] = now;
-    s.lastPairAt[`${actor}->${target}`] = now;
     // The target may now hit `actor` back for free within the window.
     s.punchback[target] = { from: actor, until: now + COOLDOWNS.PUNCHBACK_WINDOW_MS };
   }

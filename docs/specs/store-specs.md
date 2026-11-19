@@ -34,8 +34,6 @@ Design, data model and rollout: [`docs/plans/store-implementation-plan.md`](../p
 | Constant | Value | Meaning |
 |---|---|---|
 | `STORE_ENABLED` | `'true'` to enable | Feature flag, on top of `BETTING_ENABLED` + accounts. Anything else = Store off everywhere |
-| `ACTION_COOLDOWN_MS` | 10000 | One consumable action per actor per 10s (room-scoped), the main spam brake |
-| `TARGET_THROTTLE_MS` | 30000 | Same actor can't hit the same target again inside 30s (anti-focus; longer than the per-actor brake so it actually bites) |
 | `TARGET_INCOMING_MS` | 3000 | At most one action lands on a given target per 3s (caps pile-ons from many actors) |
 | `PUNCHBACK_WINDOW_MS` | 5000 | After being hit, the target may retaliate once, free, within 5s (see "Punch-back") |
 
@@ -138,14 +136,14 @@ short message; no animation plays on anyone's screen.
 
 ### Cooldowns (anti-abuse)
 
-Charges alone aren't enough to stop a match turning into spam, so actions are rate-limited server-side:
+There is deliberately **no per-player cooldown**: a player can fire as often as they have charges, and
+can hit the same person again and again (each use costs a charge). The one limit left is:
 
-- **Per actor**: one action every `ACTION_COOLDOWN_MS` (10s).
-- **Same actor → same target**: additionally throttled to once per `TARGET_THROTTLE_MS` (30s), so one
-  player can't single out another even while acting on others. (Deliberately longer than the per-actor
-  cooldown, or it would never take effect.)
 - **Per target (incoming)**: at most one action lands on a given player per `TARGET_INCOMING_MS` (3s),
-  regardless of who sends it, so a whole room can't pile onto one person at once.
+  regardless of who sends it, so a whole room can't pile onto one person at once. If two players hit
+  the same person at the same moment, the server takes whichever arrives first; the other gets
+  "<name> was just hit - give them a second" and **keeps their charge**. Hits on *different* people
+  (and self-targeted gags like the confetti bomb) are never blocked and play at the same time.
 
 Cooldowns are enforced on the server and are room-scoped; they reset when the room ends. They gate
 *using* an action, never *buying* one.
@@ -154,8 +152,7 @@ Cooldowns are enforced on the server and are room-scoped; they reset when the ro
 
 For `PUNCHBACK_WINDOW_MS` (5s) after being hit by a targeted action, the target may fire **one**
 retaliation straight back at whoever hit them, **for free** (zero charges — the maximum "discount").
-The retaliation bypasses the per-actor cooldown (so you can hit back even if you just acted) but still
-respects the per-target incoming throttle. It's a single shot at the original attacker only; after the
+It still respects the per-target incoming limit. It's a single shot at the original attacker only; after the
 window, any further action is a normal, charged action again.
 
 ## Who can see what
