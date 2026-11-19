@@ -215,7 +215,7 @@ function storeState(room) {
   if (!room.state) room.state = {};
   if (!room.state.store) {
     room.state.store = {
-      lastTargetAt: {}, // target -> ts it was last hit by anyone
+      busyUntil: {}, // target -> when their queue of gags (playing + waiting) runs out
       punchback: {}, // target -> { from, until } a free retaliation it's owed
     };
   }
@@ -223,10 +223,12 @@ function storeState(room) {
 }
 
 /**
- * Whether `actor` may fire a consumable action at `target` right now: only the per-target
- * incoming limit applies (the per-actor and same-target cooldowns were removed). `selfTarget`
- * actions (e.g. a confetti self-bomb) are never limited. `retaliating` reports a punch-back
- * (D5) at whoever just hit the actor.
+ * Whether `actor` may fire a consumable action at `target` right now. There is no per-actor
+ * cooldown: the only limit is the per-target queue. Hits on a player who is already being
+ * gagged line up and play one after another (clients queue them, storeFx.js); once
+ * MAX_QUEUED_GAGS are playing + waiting on one player, further hits are refused until the
+ * line shortens. `selfTarget` actions (e.g. a confetti self-bomb) are never limited.
+ * `retaliating` reports a punch-back (D5) at whoever just hit the actor.
  * `now` is injectable for tests. Pure: does NOT record anything - call recordAction on a
  * landed action. Returns `{ ok, retaliating }` or `{ ok: false, error }`.
  */
@@ -237,28 +239,27 @@ function canAct(room, { actor, target, selfTarget = false, now = Date.now() }) {
   const owed = s.punchback[actor];
   const retaliating = !selfTarget && !!owed && owed.from === target && now <= owed.until;
 
-  // `?? -Infinity` is the "never happened" sentinel: a never-hit target reads as hit
-  // infinitely long ago. The only limit left is per target: at most one gag lands on a
-  // player per TARGET_INCOMING_MS, whoever sends it. (Players may fire as often as they
-  // like and at the same person repeatedly - each costs a charge.)
-  if (!selfTarget) {
-    const sinceTarget = now - (s.lastTargetAt[target] ?? -Infinity);
-    if (sinceTarget < COOLDOWNS.TARGET_INCOMING_MS) {
-      return { ok: false, error: `${target} was just hit - give them a second` };
-    }
+  if (!selfTarget && queuedOn(s, target, now) >= COOLDOWNS.MAX_QUEUED_GAGS) {
+    return { ok: false, error: `${target} already has a line of hits waiting - try again in a moment` };
   }
   return { ok: true, retaliating };
 }
 
+/** How many gag slots (playing + waiting) are still ahead on `target` at `now`. */
+function queuedOn(s, target, now) {
+  const busyUntil = s.busyUntil[target] ?? -Infinity;
+  return busyUntil > now ? Math.ceil((busyUntil - now) / COOLDOWNS.GAG_SLOT_MS) : 0;
+}
+
 /**
- * Records a landed action's timestamps and opens a punch-back window for the target. Call
- * exactly once, after canAct passed and the charge was consumed. A retaliation consumes the
- * actor's own owed window rather than being throttled.
+ * Records a landed action: adds a slot to the target's queue and opens a punch-back window
+ * for the target. Call exactly once, after canAct passed and the charge was consumed. A
+ * retaliation consumes the actor's own owed window.
  */
 function recordAction(room, { actor, target, selfTarget = false, retaliating = false, now = Date.now() }) {
   const s = storeState(room);
   if (!selfTarget) {
-    s.lastTargetAt[target] = now;
+    s.busyUntil[target] = Math.max(now, s.busyUntil[target] ?? -Infinity) + COOLDOWNS.GAG_SLOT_MS;
     // The target may now hit `actor` back for free within the window.
     s.punchback[target] = { from: actor, until: now + COOLDOWNS.PUNCHBACK_WINDOW_MS };
   }

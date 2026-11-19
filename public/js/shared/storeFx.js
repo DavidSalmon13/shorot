@@ -166,20 +166,64 @@ function findAnchor(name) {
   return document.querySelector(`[data-player="${escaped}"]`);
 }
 
+/** The column captions stack in (newest at the bottom), created on first use. */
+function captionStack(layer) {
+  let stack = layer.querySelector('.sfx-captions');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.className = 'sfx-captions';
+    layer.appendChild(stack);
+  }
+  return stack;
+}
+
 function showCaption(layer, text, ms) {
   const cap = document.createElement('div');
   cap.className = 'sfx-caption';
   cap.textContent = text;
   cap.style.setProperty('--life', `${ms}ms`);
-  layer.appendChild(cap);
+  captionStack(layer).appendChild(cap);
   setTimeout(() => cap.remove(), ms + 200);
 }
 
+// target name -> gags waiting for the one currently playing on them to finish.
+const queues = new Map();
+
 /**
- * Plays one gag. `icon` is the catalog emoji, used as a fallback for an unknown item id.
+ * Plays a gag, or lines it up behind the one already playing on the same player so hits
+ * never pile on top of each other. Every phone gets the same broadcasts in the same order,
+ * so the queue plays out identically everywhere (the server caps its length, server/store.js).
+ * Self-targeted gags (the confetti bomb) never wait.
  */
-export function playStoreFx(layer, { itemId, fromName, targetName, icon }) {
+export function playStoreFx(layer, action) {
   if (!layer) return;
+  const self = !action.fromName || action.fromName === action.targetName;
+  if (self) {
+    playNow(layer, action);
+    return;
+  }
+  const key = action.targetName;
+  if (queues.has(key)) {
+    queues.get(key).push(action);
+    return;
+  }
+  queues.set(key, []);
+  const next = (a) => {
+    const ms = playNow(layer, a);
+    setTimeout(() => {
+      const waiting = queues.get(key);
+      if (waiting && waiting.length) next(waiting.shift());
+      else queues.delete(key);
+    }, ms);
+  };
+  next(action);
+}
+
+/**
+ * Plays one gag right away and returns how long it lasts. `icon` is the catalog emoji, used
+ * as a fallback for an unknown item id.
+ */
+function playNow(layer, { itemId, fromName, targetName, icon }) {
   const gag = GAGS[itemId];
   const ms = gag ? gag.ms : 2000;
   if (gag) {
@@ -244,4 +288,5 @@ export function playStoreFx(layer, { itemId, fromName, targetName, icon }) {
     if (anchor && moodClass) anchor.classList.remove(moodClass);
     stage.remove();
   }, ms);
+  return ms;
 }

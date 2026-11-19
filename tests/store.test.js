@@ -287,7 +287,7 @@ test('consume: a failed write is swallowed into { ok: false }', async (t) => {
 
 // --- cooldowns (pure, in-memory) --------------------------------------------------------
 
-const { TARGET_INCOMING_MS, PUNCHBACK_WINDOW_MS } = catalog.COOLDOWNS;
+const { GAG_SLOT_MS, MAX_QUEUED_GAGS, PUNCHBACK_WINDOW_MS } = catalog.COOLDOWNS;
 
 test('canAct: a fresh actor may act', () => {
   const room = {};
@@ -300,20 +300,24 @@ test('canAct: no per-actor cooldown - an actor may fire again right away at some
   assert.equal(store.canAct(room, { actor: 'Ann', target: 'Cy', now: 1001 }).ok, true);
 });
 
-test('canAct: no same-target throttle - an actor may hit the same player again once the incoming window passes', () => {
+test('canAct: hits on a busy player queue up instead of being refused', () => {
   const room = {};
   store.recordAction(room, { actor: 'Ann', target: 'Bo', now: 1000 });
-  assert.equal(store.canAct(room, { actor: 'Ann', target: 'Bo', now: 1000 + TARGET_INCOMING_MS + 1 }).ok, true);
+  // Same actor and another actor can both hit Bo straight away - they line up.
+  assert.equal(store.canAct(room, { actor: 'Ann', target: 'Bo', now: 1001 }).ok, true);
+  assert.equal(store.canAct(room, { actor: 'Cy', target: 'Bo', now: 1001 }).ok, true);
 });
 
-test('canAct: a target hit by one actor is shielded from others briefly', () => {
+test('canAct: the queue on one player is capped, then reopens as gags finish', () => {
   const room = {};
-  store.recordAction(room, { actor: 'Ann', target: 'Bo', now: 1000 });
-  const res = store.canAct(room, { actor: 'Cy', target: 'Bo', now: 1000 + TARGET_INCOMING_MS - 1 });
-  assert.equal(res.ok, false);
-  assert.match(res.error, /just hit/);
-  // After the incoming window, another actor may hit the same target.
-  assert.equal(store.canAct(room, { actor: 'Cy', target: 'Bo', now: 1000 + TARGET_INCOMING_MS + 1 }).ok, true);
+  for (let i = 0; i < MAX_QUEUED_GAGS; i++) store.recordAction(room, { actor: 'Ann', target: 'Bo', now: 1000 });
+  const full = store.canAct(room, { actor: 'Cy', target: 'Bo', now: 1000 });
+  assert.equal(full.ok, false);
+  assert.match(full.error, /line of hits/);
+  // Other players are unaffected.
+  assert.equal(store.canAct(room, { actor: 'Cy', target: 'Dot', now: 1000 }).ok, true);
+  // Once the first gag has played, a slot frees up.
+  assert.equal(store.canAct(room, { actor: 'Cy', target: 'Bo', now: 1000 + GAG_SLOT_MS + 1 }).ok, true);
 });
 
 test('punch-back: the hit target may retaliate at once, bypassing their own cooldown', () => {
@@ -338,10 +342,10 @@ test('punch-back: the free window only applies to the original attacker, and exp
   assert.equal(late.retaliating, false);
 });
 
-test('canAct: a self-target action only respects the per-actor cooldown', () => {
+test('canAct: a self-target action is never limited by the queue', () => {
   const room = {};
-  // Someone else just hit Ann, so Ann's incoming window is open...
-  store.recordAction(room, { actor: 'Bo', target: 'Ann', now: 1000 });
+  // Ann's queue is full...
+  for (let i = 0; i < MAX_QUEUED_GAGS; i++) store.recordAction(room, { actor: 'Bo', target: 'Ann', now: 1000 });
   // ...but Ann confetti-bombing herself ignores target/pair checks.
   const res = store.canAct(room, { actor: 'Ann', target: 'Ann', selfTarget: true, now: 1200 });
   assert.equal(res.ok, true);

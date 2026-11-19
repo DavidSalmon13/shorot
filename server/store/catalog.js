@@ -14,7 +14,9 @@
 // Anti-abuse timings for consumable actions, all in ms (see store-specs.md "Cooldowns"
 // and "Punch-back"). Tunable live-service-style numbers.
 const COOLDOWNS = {
-  TARGET_INCOMING_MS: 3000, // any action landing on a given target (caps pile-ons)
+  GAG_SLOT_MS: 5000, // how long one gag occupies its target (the longest show, ~5s); hits on a
+  //                     busy player queue behind it and play one after another on every phone
+  MAX_QUEUED_GAGS: 4, // at most this many gags playing + waiting on one player (caps pile-ons)
   PUNCHBACK_WINDOW_MS: 5000, // free retaliation window for a hit target
 };
 

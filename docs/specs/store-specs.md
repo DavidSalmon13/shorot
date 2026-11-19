@@ -34,7 +34,8 @@ Design, data model and rollout: [`docs/plans/store-implementation-plan.md`](../p
 | Constant | Value | Meaning |
 |---|---|---|
 | `STORE_ENABLED` | `'true'` to enable | Feature flag, on top of `BETTING_ENABLED` + accounts. Anything else = Store off everywhere |
-| `TARGET_INCOMING_MS` | 3000 | At most one action lands on a given target per 3s (caps pile-ons from many actors) |
+| `GAG_SLOT_MS` | 5000 | How long one gag occupies its target; hits on a busy player queue behind it |
+| `MAX_QUEUED_GAGS` | 4 | At most 4 gags playing + waiting on one player; more are refused until the line shortens |
 | `PUNCHBACK_WINDOW_MS` | 5000 | After being hit, the target may retaliate once, free, within 5s (see "Punch-back") |
 
 Prices live in code (`server/store/catalog.js`), on a ladder from cheap taunts to premium cosmetics —
@@ -139,11 +140,15 @@ short message; no animation plays on anyone's screen.
 There is deliberately **no per-player cooldown**: a player can fire as often as they have charges, and
 can hit the same person again and again (each use costs a charge). The one limit left is:
 
-- **Per target (incoming)**: at most one action lands on a given player per `TARGET_INCOMING_MS` (3s),
-  regardless of who sends it, so a whole room can't pile onto one person at once. If two players hit
-  the same person at the same moment, the server takes whichever arrives first; the other gets
-  "<name> was just hit - give them a second" and **keeps their charge**. Hits on *different* people
-  (and self-targeted gags like the confetti bomb) are never blocked and play at the same time.
+- **Per target, a queue (not a refusal)**: if a player is already being gagged, a new hit on them
+  **lines up** and plays right after the current one finishes, on every phone (every phone gets the
+  broadcasts in the same order, so the queue plays out the same everywhere - `storeFx.js`). Two players
+  hitting the same person at the same moment therefore both land, one after the other. The line is
+  capped at `MAX_QUEUED_GAGS` (4) per player; past that the sender gets "<name> already has a line of
+  hits waiting - try again in a moment" and **keeps their charge**. Hits on *different* people (and
+  self-targeted gags like the confetti bomb, which never wait) play at the same time.
+- **Captions stack**: each playing gag's "Dana punched Yossi!" caption sits in a column at the top of
+  the screen, newest at the bottom, so simultaneous gags never cover each other's captions.
 
 Cooldowns are enforced on the server and are room-scoped; they reset when the room ends. They gate
 *using* an action, never *buying* one.
@@ -152,7 +157,7 @@ Cooldowns are enforced on the server and are room-scoped; they reset when the ro
 
 For `PUNCHBACK_WINDOW_MS` (5s) after being hit by a targeted action, the target may fire **one**
 retaliation straight back at whoever hit them, **for free** (zero charges — the maximum "discount").
-It still respects the per-target incoming limit. It's a single shot at the original attacker only; after the
+It still respects the per-target queue cap. It's a single shot at the original attacker only; after the
 window, any further action is a normal, charged action again.
 
 ## Who can see what

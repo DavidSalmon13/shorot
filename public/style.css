@@ -5718,14 +5718,23 @@ body.store-picking [data-player] {
   will-change: transform, opacity;
 }
 
-/* Who did what to whom - a pill near the top of the screen. */
-.sfx-caption {
-  --life: 3000ms;
+/* Who did what to whom: pills near the top of the screen, stacked when several gags play
+   at once (newest at the bottom). */
+.sfx-captions {
   position: absolute;
   left: 50%;
   top: calc(env(safe-area-inset-top) + 12px);
   transform: translateX(-50%);
-  max-width: calc(100vw - 32px);
+  width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.sfx-caption {
+  --life: 3000ms;
+  max-width: 100%;
   padding: 0.55rem 1.1rem;
   border-radius: 999px;
   background: rgba(10, 10, 18, 0.88);
@@ -5742,11 +5751,11 @@ body.store-picking [data-player] {
 }
 
 @keyframes sfx-caption {
-  0% { opacity: 0; transform: translate(-50%, -20px) scale(0.8); }
-  8% { opacity: 1; transform: translate(-50%, 0) scale(1.06); }
-  12% { transform: translate(-50%, 0) scale(1); }
-  88% { opacity: 1; transform: translate(-50%, 0); }
-  100% { opacity: 0; transform: translate(-50%, -10px); }
+  0% { opacity: 0; transform: translateY(-20px) scale(0.8); }
+  8% { opacity: 1; transform: translateY(0) scale(1.06); }
+  12% { transform: translateY(0) scale(1); }
+  88% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
 }
 
 /* Particles flung from the center (--dx/--dy set per particle). */
