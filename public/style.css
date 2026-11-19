@@ -6505,6 +6505,15 @@ body.store-picking [data-player] {
 .sfx-stick .st-leg-a { transform: rotate(10deg); }
 .sfx-stick .st-leg-b { transform: rotate(-10deg); }
 
+/* The player's face (sticker or emoji) replaces the plain stick head. Not stroked. */
+.sfx-stick.st-has-face .st-head { display: none; }
+.sfx-stick .st-face image,
+.sfx-stick .st-face text {
+  stroke: none;
+  fill: #000;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.7));
+}
+
 /* Only the victim shows a butt, once they bend over. */
 .sfx-stick .st-butt { fill: currentColor; stroke: none; opacity: 0; transition: opacity 0.2s; }
 .sfx-stick.st-bent .st-butt,

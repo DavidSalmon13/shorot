@@ -12,6 +12,7 @@
  */
 
 import { sfx, haptic } from '../fx.js';
+import { emojiForName } from './playerEmoji.js';
 
 const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const CONFETTI_COLORS = ['#c6ff4a', '#a78bfa', '#ff6b9a', '#ffd84a', '#4ad9ff', '#ff9f4a'];
@@ -230,7 +231,8 @@ function buildLightning(stage) {
 // A stick figure (head, body, two arms, two legs) drawn facing right; --face flips it.
 const STICK_SVG = `<svg viewBox="0 0 44 72" aria-hidden="true">
   <g class="st-body">
-    <circle cx="22" cy="11" r="7" />
+    <circle class="st-head" cx="22" cy="11" r="7" />
+    <g class="st-face"></g>
     <line x1="22" y1="18" x2="22" y2="44" />
     <circle class="st-butt" cx="17" cy="45" r="5.5" />
     <g class="st-arm st-arm-back"><line x1="22" y1="24" x2="22" y2="41" /></g>
@@ -243,11 +245,54 @@ const STICK_SVG = `<svg viewBox="0 0 44 72" aria-hidden="true">
 const FIG_W = 56; // rendered size of a figure (the SVG is drawn on a 44x72 grid)
 const FIG_H = 92;
 
-function stickFigure(stage, className, face) {
+/**
+ * A player's face as shown on their icon: their sticker image, else their emoji. Looks at
+ * every rendered copy of their icon (a hidden lobby roster still has it), falling back to
+ * the name's default emoji.
+ */
+function faceOf(name) {
+  const escaped = window.CSS && CSS.escape ? CSS.escape(name) : String(name).replace(/["\\]/g, '\\$&');
+  for (const el of document.querySelectorAll(`[data-player="${escaped}"]`)) {
+    const img = el.tagName === 'IMG' ? el : el.querySelector('img');
+    if (img && img.getAttribute('src')) return { src: img.getAttribute('src') };
+    const text = el.textContent.trim();
+    if (text) return { emoji: [...text].slice(0, 2).join('') };
+  }
+  return { emoji: emojiForName(name) };
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** A stick figure wearing `name`'s face as its head, facing right unless face is -1. */
+function stickFigure(stage, className, face, name) {
   const fig = document.createElement('span');
   fig.className = `sfx-stick ${className}`;
   fig.style.setProperty('--face', face);
   fig.innerHTML = `<span class="st-inner">${STICK_SVG}</span>`;
+  // The face sits inside the body group, so it tilts with the figure (bending over, etc.).
+  // Drawn bigger than the stick head (r=7) so it reads at a glance; the outline circle hides.
+  const holder = fig.querySelector('.st-face');
+  const look = faceOf(name);
+  let faceEl;
+  if (look.src) {
+    faceEl = document.createElementNS(SVG_NS, 'image');
+    faceEl.setAttribute('href', look.src);
+    faceEl.setAttribute('x', '5');
+    faceEl.setAttribute('y', '-9');
+    faceEl.setAttribute('width', '34');
+    faceEl.setAttribute('height', '34');
+    faceEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  } else {
+    faceEl = document.createElementNS(SVG_NS, 'text');
+    faceEl.setAttribute('x', '22');
+    faceEl.setAttribute('y', '10');
+    faceEl.setAttribute('font-size', '23');
+    faceEl.setAttribute('text-anchor', 'middle');
+    faceEl.setAttribute('dominant-baseline', 'central');
+    faceEl.textContent = look.emoji;
+  }
+  holder.appendChild(faceEl);
+  fig.classList.add('st-has-face');
   stage.appendChild(fig);
   return fig;
 }
@@ -283,9 +328,9 @@ function buildSpank(stage, { fromName, targetName }) {
   // Keep the walker's start on screen.
   start.x = Math.max(FIG_W / 2 - target.x, Math.min(vw - FIG_W / 2 - target.x, start.x));
 
-  const victim = stickFigure(stage, 'st-victim', face);
+  const victim = stickFigure(stage, 'st-victim', face, targetName);
   victim.style.transform = `translate(${-FIG_W / 2}px, ${FOOT_Y - FIG_H}px)`;
-  const walker = stickFigure(stage, 'st-walker', face);
+  const walker = stickFigure(stage, 'st-walker', face, fromName || targetName);
   const at = (p) => `translate(${p.x - FIG_W / 2}px, ${p.y - FIG_H}px)`;
   walker.style.transform = at(start);
 

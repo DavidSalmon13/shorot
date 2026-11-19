@@ -98,7 +98,7 @@ sticker-unlock system rather than adding a parallel one.
 | 💦 **Water Balloon** | 60 | another player | ~4.5s: a wobbly balloon is lobbed in and bursts in a splash ring and droplets; their icon turns blue and shivers, drips and a puddle stay |
 | 🥧 **Pie in the Face** | 90 | another player | ~5s: a pie flies in and smacks flat; a blob of cream with a cherry slowly slides down their icon and drips off |
 | ⚡ **Lightning Strike** | 150 | another player | ~4.5s: a storm cloud, the whole screen flashes, a bolt strikes with "ZAP!" and sparks; their icon is left charred and smoking, with thunder |
-| 🍑 **Spanking** | 300 | another player | ~5.6s, the priciest gag: a lime stick figure pops out of the sender's icon and walks across the screen to the target; the target gets a white stick figure that bends over; three smacks (arm wind-up, "SMACK!", red handprints, footsteps + smack sounds), then the target hops around yelling "OW!" while the sender's figure cheers. If the sender isn't on screen, their figure walks in from the side |
+| 🍑 **Spanking** | 300 | another player | ~5.6s, the priciest gag: each stick figure wears its player's face (sticker, else emoji) as its head. A lime stick figure pops out of the sender's icon and walks across the screen to the target; the target gets a white stick figure that bends over; three smacks (arm wind-up, "SMACK!", red handprints, footsteps + smack sounds), then the target hops around yelling "OW!" while the sender's figure cheers. If the sender isn't on screen, their figure walks in from the side |
 
 Every gag also shows a caption at the top of the screen ("🥊 Dana punched Yossi!") and plays a
 stronger vibration pattern. Things that fly in come from whichever side of the target has more room.
