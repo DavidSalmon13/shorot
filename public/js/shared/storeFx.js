@@ -229,17 +229,34 @@ function buildLightning(stage) {
 }
 
 // A stick figure (head, body, two arms, two legs) drawn facing right; --face flips it.
+// A cartoon human (drawn facing right on a 44x72 grid; --face flips it): shirt torso, jeans,
+// sleeved arms bending at the elbow, legs bending at the knee, shoes, hands. The player's
+// face (sticker / emoji) is added as the head by stickFigure(). Joint pivots - hips 22,44,
+// shoulders 22,23, elbows 22,32, knees 22,56 - are what the CSS poses rotate around.
+const LEG = `<rect class="st-pants" x="19.2" y="43" width="6" height="14.5" rx="3" />
+    <g class="st-shin">
+      <rect class="st-pants" x="19.5" y="55" width="5.4" height="13" rx="2.7" />
+      <ellipse class="st-shoe" cx="24" cy="68.8" rx="4.6" ry="2.3" />
+    </g>`;
+const ARM = `<rect class="st-shirt" x="19.8" y="21" width="4.8" height="12" rx="2.4" />
+      <g class="st-fore">
+        <rect class="st-skin" x="20.1" y="31" width="4.2" height="10" rx="2.1" />
+        <circle class="st-skin" cx="22.2" cy="41.6" r="2.5" />
+      </g>`;
 const STICK_SVG = `<svg viewBox="0 0 44 72" aria-hidden="true">
+  <g class="st-leg st-leg-b">${LEG}</g>
   <g class="st-body">
-    <circle class="st-head" cx="22" cy="11" r="7" />
+    <g class="st-arm st-arm-back">${ARM}</g>
+    <ellipse class="st-pants st-butt" cx="17.2" cy="44" rx="5.8" ry="5.2" />
+    <rect class="st-pants" x="15" y="38" width="14" height="9" rx="3.5" />
+    <rect class="st-skin" x="20" y="15" width="4" height="6" rx="1.5" />
+    <path class="st-shirt" d="M15 21 Q22 18.5 29 21 Q31.5 22 31 25 L29.5 40 Q22 42 14.5 40 L13 25 Q12.5 22 15 21 Z" />
+    <path class="st-shirt-fold" d="M22 22 L22 39" />
+    <circle class="st-head" cx="22" cy="10" r="7" />
     <g class="st-face"></g>
-    <line x1="22" y1="18" x2="22" y2="44" />
-    <circle class="st-butt" cx="17" cy="45" r="5.5" />
-    <g class="st-arm st-arm-back"><line x1="22" y1="24" x2="22" y2="41" /></g>
-    <g class="st-arm st-arm-front"><line x1="22" y1="24" x2="22" y2="41" /></g>
+    <g class="st-arm st-arm-front">${ARM}</g>
   </g>
-  <g class="st-leg st-leg-a"><line x1="22" y1="44" x2="22" y2="68" /></g>
-  <g class="st-leg st-leg-b"><line x1="22" y1="44" x2="22" y2="68" /></g>
+  <g class="st-leg st-leg-a">${LEG}</g>
 </svg>`;
 
 const FIG_W = 56; // rendered size of a figure (the SVG is drawn on a 44x72 grid)
@@ -278,14 +295,14 @@ function stickFigure(stage, className, face, name) {
     faceEl = document.createElementNS(SVG_NS, 'image');
     faceEl.setAttribute('href', look.src);
     faceEl.setAttribute('x', '5');
-    faceEl.setAttribute('y', '-9');
+    faceEl.setAttribute('y', '-8');
     faceEl.setAttribute('width', '34');
     faceEl.setAttribute('height', '34');
     faceEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
   } else {
     faceEl = document.createElementNS(SVG_NS, 'text');
     faceEl.setAttribute('x', '22');
-    faceEl.setAttribute('y', '10');
+    faceEl.setAttribute('y', '9');
     faceEl.setAttribute('font-size', '23');
     faceEl.setAttribute('text-anchor', 'middle');
     faceEl.setAttribute('dominant-baseline', 'central');

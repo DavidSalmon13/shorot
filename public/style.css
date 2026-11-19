@@ -6453,21 +6453,26 @@ body.store-picking [data-player] {
   100% { opacity: 0; transform: translate(-50%, -260%) scale(1.4) rotate(-20deg); filter: grayscale(1); }
 }
 
-/* 🍑 Spanking: two stick figures (storeFx.js buildSpank). The walker is moved by a Web
+/* 🍑 Spanking: two cartoon humans (storeFx.js buildSpank). The walker is moved by a Web
    Animation; poses are classes toggled on a timeline: st-walking -> st-spanking -> st-cheer,
-   and st-bent -> st-spanked -> st-ow on the victim. --face (1 / -1) flips a figure. */
+   and st-bent -> st-spanked -> st-ow on the victim. --face (1 / -1) flips a figure; the
+   shirt colour tells the two apart. */
 .sfx-stick {
+  --skin: #e2a77c;
+  --pants: #2f4a7a;
+  --shoe: #1d1d24;
+  --shirt: #e94b4b;
   position: absolute;
   left: 0;
   top: 0;
   width: 56px; /* FIG_W / FIG_H in storeFx.js */
   height: 92px;
   transition: opacity 0.5s;
-  filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6));
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.55));
 }
 
-.sfx-stick.st-walker { color: #c6ff4a; }
-.sfx-stick.st-victim { color: #fff; }
+.sfx-stick.st-walker { --shirt: #7bc043; }
+.sfx-stick.st-victim { --shirt: #f2f2f2; --pants: #3a3f4a; }
 .sfx-stick.st-out { opacity: 0; }
 
 .sfx-stick .st-inner {
@@ -6485,27 +6490,37 @@ body.store-picking [data-player] {
   height: 100%;
   overflow: visible;
   transform: scaleX(var(--face, 1));
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 3.6;
-  stroke-linecap: round;
+  stroke: rgba(15, 15, 22, 0.75);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
 }
+
+.sfx-stick .st-skin { fill: var(--skin); }
+.sfx-stick .st-shirt { fill: var(--shirt); }
+.sfx-stick .st-pants { fill: var(--pants); }
+.sfx-stick .st-shoe { fill: var(--shoe); }
+.sfx-stick .st-shirt-fold { fill: none; stroke: rgba(0, 0, 0, 0.18); stroke-width: 0.6; }
+.sfx-stick .st-head { fill: var(--skin); }
 
 .sfx-stick .st-body,
 .sfx-stick .st-arm,
-.sfx-stick .st-leg {
+.sfx-stick .st-fore,
+.sfx-stick .st-leg,
+.sfx-stick .st-shin {
   transform-box: view-box;
 }
 
 .sfx-stick .st-body { transform-origin: 22px 44px; transition: transform 0.3s ease; }
-.sfx-stick .st-arm { transform-origin: 22px 24px; }
+.sfx-stick .st-arm { transform-origin: 22px 23px; }
+.sfx-stick .st-fore { transform-origin: 22px 32px; transform: rotate(-12deg); }
 .sfx-stick .st-leg { transform-origin: 22px 44px; }
-.sfx-stick .st-arm-back { transform: rotate(18deg); }
-.sfx-stick .st-arm-front { transform: rotate(-18deg); }
-.sfx-stick .st-leg-a { transform: rotate(10deg); }
-.sfx-stick .st-leg-b { transform: rotate(-10deg); }
+.sfx-stick .st-shin { transform-origin: 22px 56px; }
+.sfx-stick .st-arm-back { transform: rotate(12deg); }
+.sfx-stick .st-arm-front { transform: rotate(-8deg); }
+.sfx-stick .st-leg-a { transform: rotate(6deg); }
+.sfx-stick .st-leg-b { transform: rotate(-6deg); }
 
-/* The player's face (sticker or emoji) replaces the plain stick head. Not stroked. */
+/* The player's face (sticker or emoji) is the head; the plain head shows only without one. */
 .sfx-stick.st-has-face .st-head { display: none; }
 .sfx-stick .st-face image,
 .sfx-stick .st-face text {
@@ -6513,11 +6528,6 @@ body.store-picking [data-player] {
   fill: #000;
   filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.7));
 }
-
-/* Only the victim shows a butt, once they bend over. */
-.sfx-stick .st-butt { fill: currentColor; stroke: none; opacity: 0; transition: opacity 0.2s; }
-.sfx-stick.st-bent .st-butt,
-.sfx-stick.st-spanked .st-butt { opacity: 1; }
 
 @keyframes st-pop {
   0% { opacity: 0; transform: scale(0.2) translateY(20px); }
@@ -6529,11 +6539,20 @@ body.store-picking [data-player] {
 .st-walking .st-leg-a { animation: st-swing 0.48s ease-in-out infinite alternate; }
 .st-walking .st-leg-b { animation: st-swing 0.48s ease-in-out infinite alternate-reverse; }
 .st-walking .st-arm-front { animation: st-swing 0.48s ease-in-out infinite alternate-reverse; }
+.st-walking .st-leg-a .st-shin { animation: st-knee 0.48s ease-in-out infinite alternate-reverse; }
+.st-walking .st-leg-b .st-shin { animation: st-knee 0.48s ease-in-out infinite alternate; }
+.st-walking .st-fore { transform: rotate(-35deg); }
 .st-walking .st-arm-back { animation: st-swing 0.48s ease-in-out infinite alternate; }
 
 @keyframes st-swing {
-  from { transform: rotate(32deg); }
-  to { transform: rotate(-32deg); }
+  from { transform: rotate(28deg); }
+  to { transform: rotate(-28deg); }
+}
+
+/* The knee bends as the leg swings back. */
+@keyframes st-knee {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(38deg); }
 }
 
 @keyframes st-bob {
@@ -6544,6 +6563,7 @@ body.store-picking [data-player] {
 /* Spanking: the front arm winds up over the head and swings down, three times. */
 .st-spanking .st-arm-front { animation: st-spank 0.5s ease-in 3; }
 .st-spanking .st-body { transform: rotate(8deg); }
+.st-spanking .st-arm-front .st-fore { transform: rotate(-10deg); }
 
 @keyframes st-spank {
   0% { transform: rotate(-150deg); }

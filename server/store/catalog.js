@@ -53,7 +53,7 @@ const STORE_ITEMS = [
   { id: 'glove', type: 'consumable', target: 'other', price: 100, icon: '🥊', name: 'Boxing Glove', description: "Punch another player's icon. POW!" },
   { id: 'crown', type: 'consumable', target: 'other', price: 120, icon: '👑', name: 'Crown a Player', description: 'Drop a crown on another player - a nice one.' },
   { id: 'lightning', type: 'consumable', target: 'other', price: 150, icon: '⚡', name: 'Lightning Strike', description: 'Call down a lightning bolt - flash, thunder, and a smoking, charred icon.' },
-  { id: 'spank', type: 'consumable', target: 'other', price: 300, icon: '🍑', name: 'Spanking', description: 'A stick figure marches out of your icon, over to another player, and spanks them. Three times.' },
+  { id: 'spank', type: 'consumable', target: 'other', price: 300, icon: '🍑', name: 'Spanking', description: 'A little you (your face, shirt and jeans) marches out of your icon, over to another player, and spanks them. Three times.' },
 ];
 
 const BY_ID = new Map(STORE_ITEMS.map((i) => [i.id, i]));
