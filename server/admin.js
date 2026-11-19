@@ -25,6 +25,7 @@ const {
 } = require('./lobby');
 
 const MAX_ANNOUNCEMENT = 200;
+const MAX_TOKEN_ADJUST = 1000000;
 const STARTED_AT = Date.now();
 
 function adminEmails() {
@@ -267,6 +268,7 @@ function registerAdminRoutes(app, { ctx }) {
     const user = await db.query(
       `SELECT u.id, u.display_name, u.email, u.avatar_url, u.sticker, u.created_at, u.banned_at,
               (SELECT COUNT(*) FROM auth_sessions s WHERE s.user_id = u.id AND s.expires_at > now())::int AS sessions,
+              (SELECT balance FROM wallets w WHERE w.user_id = u.id) AS tokens,
               (SELECT array_agg(provider) FROM user_identities i WHERE i.user_id = u.id) AS providers
          FROM users u WHERE u.id = $1`,
       [id]
@@ -315,7 +317,8 @@ function registerAdminRoutes(app, { ctx }) {
     });
   }));
 
-  // { displayName? , banned? } - either or both.
+  // { displayName?, banned?, tokensDelta? } - any combination. tokensDelta adds (or, if
+  // negative, takes away) tokens; the balance never goes below 0.
   app.post('/api/admin/users/:id', requireAdmin, requireDb, json, route(async (req, res) => {
     const id = userIdParam(req);
     if (!id) return res.status(400).json({ ok: false, error: 'Bad user id' });
@@ -341,6 +344,20 @@ function registerAdminRoutes(app, { ctx }) {
         kickEverywhere((p) => String(p.userId || '') === String(id) || clientIds.has(p.clientId));
       }
       logActivity('admin', `Admin ${req.body.banned ? 'banned' : 'unbanned'} account ${label}`);
+    }
+    if (req.body.tokensDelta !== undefined) {
+      const delta = Number(req.body.tokensDelta);
+      if (!Number.isSafeInteger(delta) || delta === 0 || Math.abs(delta) > MAX_TOKEN_ADJUST) {
+        return res.status(400).json({ ok: false, error: `Amount must be a whole number between -${MAX_TOKEN_ADJUST} and ${MAX_TOKEN_ADJUST}` });
+      }
+      const { rows } = await db.query(
+        `INSERT INTO wallets (user_id, balance) VALUES ($1, GREATEST(0, $2::int))
+         ON CONFLICT (user_id) DO UPDATE SET balance = GREATEST(0, wallets.balance + $2::int)
+         RETURNING balance`,
+        [id, delta]
+      );
+      logActivity('admin', `Admin ${delta > 0 ? 'gave' : 'took'} ${Math.abs(delta)} tokens ${delta > 0 ? 'to' : 'from'} ${label} (now ${rows[0].balance})`);
+      return res.json({ ok: true, tokens: rows[0].balance });
     }
     res.json({ ok: true });
   }));

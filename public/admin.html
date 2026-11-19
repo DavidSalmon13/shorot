@@ -578,6 +578,7 @@
             <dt>Joined</dt><dd>${esc(fmtDateTime(user.created_at))}</dd>
             <dt>Sign-in</dt><dd>${esc((user.providers || []).join(', ') || '—')} · ${user.sessions} active session${user.sessions === 1 ? '' : 's'}</dd>
             <dt>Badges</dt><dd>${badges.length ? esc(badges.join(', ')) : '—'}</dd>
+            <dt>Tokens</dt><dd>${user.tokens == null ? '— (no wallet yet)' : esc(Number(user.tokens).toLocaleString())}</dd>
             ${user.banned_at ? `<dt>Banned</dt><dd>${esc(fmtDateTime(user.banned_at))}</dd>` : ''}
           </dl>
           <form id="rename-form">
@@ -585,6 +586,11 @@
             <button type="submit" class="ghost">Rename</button>
             <button type="button" class="${user.banned_at ? 'ghost' : 'danger'}" data-act="ban">${user.banned_at ? 'Unban account' : 'Ban account'}</button>
             <button type="button" class="danger" data-act="delete">Delete account</button>
+          </form>
+
+          <form id="tokens-form" style="margin-top:8px">
+            <input id="tokens-input" type="number" step="1" inputmode="numeric" placeholder="Tokens (e.g. 10000, or -500 to take)" aria-label="Tokens to give" />
+            <button type="submit">Give tokens</button>
           </form>
 
           <h2>Devices</h2>
@@ -598,6 +604,17 @@
       box.dataset.name = user.display_name;
       box.dataset.banned = user.banned_at ? '1' : '';
     }
+
+    $('user-detail').addEventListener('submit', async (e) => {
+      if (e.target.id !== 'tokens-form') return;
+      e.preventDefault();
+      const box = $('user-detail');
+      const amount = Number($('tokens-input').value);
+      if (!Number.isInteger(amount) || amount === 0) return toast('Enter a whole number of tokens', true);
+      const verb = amount > 0 ? `Give ${amount.toLocaleString()} tokens to` : `Take ${Math.abs(amount).toLocaleString()} tokens from`;
+      if (!confirm(`${verb} ${box.dataset.name}?`)) return;
+      await act('POST', `/api/admin/users/${box.dataset.user}`, { tokensDelta: amount }, amount > 0 ? 'Tokens given' : 'Tokens taken', refreshUsers);
+    });
 
     $('user-detail').addEventListener('submit', async (e) => {
       if (e.target.id !== 'rename-form') return;
