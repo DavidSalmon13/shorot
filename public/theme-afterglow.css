@@ -1276,3 +1276,34 @@
   background: var(--ag-glass);
   border-color: var(--ag-line);
 }
+
+/* ---------- Suggestion box (js/shared/suggestionBox.js) ---------- */
+
+:where(:root[data-theme="afterglow"]) .suggest-box {
+  background: rgba(18, 17, 34, 0.96);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  color: var(--text);
+  backdrop-filter: blur(12px);
+}
+
+:where(:root[data-theme="afterglow"]) .suggest-box textarea {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+}
+
+:where(:root[data-theme="afterglow"]) .suggest-box textarea::placeholder {
+  color: #8e89ae;
+}
+
+:where(:root[data-theme="afterglow"]) .suggest-box textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(198, 255, 74, 0.2);
+}
+
+:where(:root[data-theme="afterglow"]) .suggest-status:not(.error) {
+  color: var(--accent);
+}

@@ -115,6 +115,8 @@
       background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
       padding: 8px 14px; font-size: 0.9rem; z-index: 10;
     }
+    .message { white-space: pre-wrap; word-break: break-word; margin: 0 0 8px; }
+    .message-meta { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 0.85rem; }
     .toast.bad { border-color: var(--error); color: var(--error); }
   </style>
 </head>
@@ -137,6 +139,7 @@
         <button type="button" data-tab="live" class="active">Live</button>
         <button type="button" data-tab="users">Users</button>
         <button type="button" data-tab="games">Games</button>
+        <button type="button" data-tab="messages">Messages</button>
       </nav>
 
       <!-- Live -->
@@ -228,6 +231,14 @@
               <tbody id="games-table"></tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <section id="tab-messages" class="hidden">
+        <p id="messages-nodb" class="card empty hidden">The database isn't configured (DATABASE_URL), so the suggestion box can't store messages.</p>
+        <div id="messages-body">
+          <p class="muted" style="margin:0 0 10px">Sent from the 💡 suggestion box in the app, newest first.</p>
+          <div id="messages-list"></div>
         </div>
       </section>
     </section>
@@ -369,10 +380,11 @@
     function switchTab(tab) {
       activeTab = tab;
       document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
-      ['live', 'users', 'games'].forEach((t) => $(`tab-${t}`).classList.toggle('hidden', t !== tab));
+      ['live', 'users', 'games', 'messages'].forEach((t) => $(`tab-${t}`).classList.toggle('hidden', t !== tab));
       if (tab === 'live') refreshLive();
       if (tab === 'users') refreshUsers();
       if (tab === 'games') refreshGames();
+      if (tab === 'messages') refreshMessages();
     }
     document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
@@ -658,6 +670,38 @@
           </tr>`).join('')
         : '<tr><td colspan="3" class="empty">No games recorded yet.</td></tr>';
     }
+
+    // ---- messages (suggestion box) ----
+    async function refreshMessages() {
+      const res = await api('GET', '/api/admin/suggestions');
+      const noDb = res.status === 503;
+      $('messages-nodb').classList.toggle('hidden', !noDb);
+      $('messages-body').classList.toggle('hidden', noDb);
+      if (!res.ok) return;
+      $('messages-list').innerHTML = res.suggestions.length
+        ? res.suggestions.map((m) => {
+            const who = m.name_used || m.account_name || 'Anonymous';
+            const account = m.user_id
+              ? `<span class="pill accent" title="${esc(m.account_email || '')}">👤 ${esc(m.account_name || 'Account')}</span>`
+              : '<span class="pill">guest</span>';
+            const room = m.room_code ? `<span class="pill">room ${esc(m.room_code)}</span>` : '';
+            return `<div class="card">
+              <p class="message">${esc(m.message)}</p>
+              <div class="message-meta">
+                <span><strong>${esc(who)}</strong> ${account} ${room}</span>
+                <span class="muted">${esc(fmtDateTime(m.created_at))} · ${esc(ago(m.created_at))}
+                  <button class="danger small" data-msg="${m.id}">Delete</button></span>
+              </div>
+            </div>`;
+          }).join('')
+        : '<p class="card empty">No messages yet.</p>';
+    }
+    $('messages-list').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-msg]');
+      if (btn && confirm('Delete this message?')) {
+        act('POST', '/api/admin/suggestions/delete', { id: Number(btn.dataset.msg) }, 'Message deleted', refreshMessages);
+      }
+    });
 
     checkAccess();
   </script>

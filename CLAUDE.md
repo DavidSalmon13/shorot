@@ -52,7 +52,9 @@ Requires Node >=18. Environment variables (see `.env.example`):
   Live rooms/players with kick, make-host, end-game, reset-scores and announce;
   an in-memory activity feed (`server/activity.js`, not persisted); account
   search/rename/ban/delete, device bans (enforced on `join` and Google sign-in)
-  and recent game history.
+  and recent game history, plus a Messages tab listing what players sent through the
+  header's 💡 suggestion box (`server/suggestions.js`, `public/js/shared/suggestionBox.js`,
+  stored in Postgres - needs `DATABASE_URL`).
 
 ## Architecture
 

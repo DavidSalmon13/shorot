@@ -39,11 +39,24 @@
     </div>
     <img class="app-logo" src="images/logo-shorot.png" alt="Shorot" />
     <p id="token-pill" class="token-pill hidden" role="status"><span class="token-pill-coin" aria-hidden="true"></span><span id="token-pill-amount"></span></p>
-    <div id="bg-controls" class="bg-controls hidden">
-      <button id="bg-change-btn" class="bg-btn" type="button" title="Change background"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
-      <button id="bg-clear-btn" class="bg-btn hidden" type="button" title="Reset background">✕</button>
-      <input id="bg-file-input" type="file" accept="image/*" class="hidden" />
+    <div class="header-right">
+      <div id="bg-controls" class="bg-controls hidden">
+        <button id="bg-change-btn" class="bg-btn" type="button" title="Change background"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+        <button id="bg-clear-btn" class="bg-btn hidden" type="button" title="Reset background">✕</button>
+        <input id="bg-file-input" type="file" accept="image/*" class="hidden" />
+      </div>
+      <button id="suggest-btn" class="bg-btn suggest-btn" type="button" title="Send a suggestion" aria-label="Send a suggestion" aria-expanded="false" aria-controls="suggest-box"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg></button>
     </div>
+    <!-- Suggestion box popup (js/shared/suggestionBox.js); messages land in /admin's Messages tab. -->
+    <form id="suggest-box" class="suggest-box hidden" role="dialog" aria-label="Suggestion box">
+      <div class="suggest-box-head">
+        <strong>Got an idea for Shorot?</strong>
+        <button id="suggest-close" class="suggest-close" type="button" aria-label="Close">×</button>
+      </div>
+      <textarea id="suggest-text" maxlength="1000" rows="4" placeholder="Type your suggestion…"></textarea>
+      <p id="suggest-status" class="suggest-status" role="status" aria-live="polite"></p>
+      <button id="suggest-send" type="submit">Send</button>
+    </form>
   </header>
   <p id="bg-error" class="error bg-error hidden"></p>
 

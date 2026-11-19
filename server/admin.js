@@ -374,6 +374,26 @@ function registerAdminRoutes(app, { ctx }) {
     );
     res.json({ ok: true, games: rows });
   }));
+
+  // Suggestion box messages (server/suggestions.js), newest first.
+  app.get('/api/admin/suggestions', requireAdmin, requireDb, route(async (req, res) => {
+    const { rows } = await db.query(
+      `SELECT s.id, s.message, s.name_used, s.user_id, s.client_id, s.room_code, s.created_at,
+              u.display_name AS account_name, u.email AS account_email
+         FROM suggestions s
+         LEFT JOIN users u ON u.id = s.user_id
+        ORDER BY s.created_at DESC
+        LIMIT 500`
+    );
+    res.json({ ok: true, suggestions: rows });
+  }));
+
+  app.post('/api/admin/suggestions/delete', requireAdmin, requireDb, json, route(async (req, res) => {
+    const id = Number(req.body && req.body.id);
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ ok: false, error: 'Bad id' });
+    await db.query('DELETE FROM suggestions WHERE id = $1', [id]);
+    res.json({ ok: true });
+  }));
 }
 
 module.exports = { registerAdminRoutes };

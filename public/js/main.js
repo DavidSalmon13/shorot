@@ -21,6 +21,7 @@ import { initReactions } from './shared/reactions.js';
 import { initStore, refreshStore } from './shared/storeActions.js';
 import { initCosmeticEffects } from './shared/cosmeticEffects.js';
 import { initInstallButtons } from './shared/installApp.js';
+import { initSuggestionBox } from './shared/suggestionBox.js';
 import { applyCosmetics, applyMyBoardSkin } from './shared/cosmetics.js';
 
 if ('serviceWorker' in navigator) {
@@ -691,6 +692,7 @@ initAccount(getClientId, socket);
 initReactions(socket);
 initStore(socket, { getMyName });
 initCosmeticEffects(socket);
+initSuggestionBox();
 
 function chooseGame(game) {
   flashChooseError('');

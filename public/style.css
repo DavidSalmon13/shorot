@@ -235,6 +235,85 @@ body::before {
   gap: 0.4rem;
 }
 
+/* Right side of the header: host background controls + the always-on suggestion button. */
+.header-right {
+  position: absolute;
+  right: 1rem;
+  top: calc(50% + env(safe-area-inset-top) / 2);
+  transform: translateY(-50%);
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.header-right .bg-controls {
+  position: static;
+  transform: none;
+}
+
+/* Suggestion box popup (js/shared/suggestionBox.js), anchored under the header's 💡 button. */
+.suggest-box {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 1rem;
+  z-index: 50;
+  width: min(320px, calc(100vw - 2rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  border-radius: 16px;
+  background: var(--plank);
+  border: 2px solid var(--glass-border, var(--bark));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  font-size: 0.95rem;
+  font-weight: 400;
+}
+
+.suggest-box.hidden {
+  display: none;
+}
+
+.suggest-box-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.suggest-close {
+  min-height: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 1.3rem;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: inherit;
+}
+
+.suggest-box textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 90px;
+  font: inherit;
+  padding: 0.6rem;
+  border-radius: 10px;
+}
+
+.suggest-status {
+  margin: 0;
+  min-height: 1.2em;
+  font-size: 0.85rem;
+}
+
+.suggest-status.error {
+  color: var(--error, #ff8a7a);
+}
+
 .sound-controls {
   right: auto;
   left: 1rem;

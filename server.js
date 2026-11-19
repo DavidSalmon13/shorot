@@ -37,6 +37,7 @@ const accounts = require('./server/accounts');
 const betting = require('./server/betting');
 const store = require('./server/store');
 const admin = require('./server/admin');
+const suggestions = require('./server/suggestions');
 const { logActivity } = require('./server/activity');
 
 const app = express();
@@ -233,6 +234,7 @@ initLobby({
   BACKGROUNDS_DIR,
 });
 admin.registerAdminRoutes(app, { ctx });
+suggestions.registerSuggestionRoutes(app);
 
 io.on('connection', (socket) => {
   socket.emit('serverBuild', SERVER_BUILD);
