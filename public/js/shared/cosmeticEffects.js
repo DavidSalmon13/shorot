@@ -181,7 +181,8 @@ function playPodium({ names }, done) {
   for (const n of names) {
     // Pulse the row/seat around the avatar, not the avatar itself, so an equipped frame's
     // own animation isn't replaced while it plays.
-    const a = document.querySelector(`[data-player="${cssEscape(n)}"]`);
+    // The on-screen one: the hidden lobby roster keeps a zero-size copy during games.
+    const a = [...document.querySelectorAll(`[data-player="${cssEscape(n)}"]`)].find((el) => el.getBoundingClientRect().width > 0);
     const target = a && (a.closest('li') || a.parentElement || a);
     if (target) {
       target.classList.add('cfx-winner-pulse');

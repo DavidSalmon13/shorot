@@ -75,6 +75,14 @@ const GAGS = {
     haptic: [0, 380, 200],
     build: buildPie,
   },
+  spank: {
+    ms: 5600,
+    avatarClass: null,
+    caption: (from, to) => `🍑 ${from} spanked ${to}!`,
+    sound: () => sfx.spank(),
+    haptic: [0, 2900, 70, 430, 70, 430, 120],
+    build: buildSpank,
+  },
   lightning: {
     ms: 4600,
     avatarClass: 'store-av-charred',
@@ -219,9 +227,115 @@ function buildLightning(stage) {
   }
 }
 
+// A stick figure (head, body, two arms, two legs) drawn facing right; --face flips it.
+const STICK_SVG = `<svg viewBox="0 0 44 72" aria-hidden="true">
+  <g class="st-body">
+    <circle cx="22" cy="11" r="7" />
+    <line x1="22" y1="18" x2="22" y2="44" />
+    <circle class="st-butt" cx="17" cy="45" r="5.5" />
+    <g class="st-arm st-arm-back"><line x1="22" y1="24" x2="22" y2="41" /></g>
+    <g class="st-arm st-arm-front"><line x1="22" y1="24" x2="22" y2="41" /></g>
+  </g>
+  <g class="st-leg st-leg-a"><line x1="22" y1="44" x2="22" y2="68" /></g>
+  <g class="st-leg st-leg-b"><line x1="22" y1="44" x2="22" y2="68" /></g>
+</svg>`;
+
+const FIG_W = 56; // rendered size of a figure (the SVG is drawn on a 44x72 grid)
+const FIG_H = 92;
+
+function stickFigure(stage, className, face) {
+  const fig = document.createElement('span');
+  fig.className = `sfx-stick ${className}`;
+  fig.style.setProperty('--face', face);
+  fig.innerHTML = `<span class="st-inner">${STICK_SVG}</span>`;
+  stage.appendChild(fig);
+  return fig;
+}
+
+/** Where a player's icon is on screen (its center), or null if they aren't shown. */
+function centerOf(name) {
+  const a = findAnchor(name);
+  if (!a) return null;
+  const r = a.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+/**
+ * 🍑 Spanking: the sender's figure walks from their icon to the target, whose own figure
+ * bends over; three smacks, then the target hops around while the sender cheers. Positions
+ * are stage-relative (the stage sits on the target's icon); the walk is a Web Animation.
+ */
+function buildSpank(stage, { fromName, targetName }) {
+  const vw = window.innerWidth;
+  const target = centerOf(targetName) || { x: vw / 2, y: window.innerHeight * 0.45 };
+  const from = fromName !== targetName ? centerOf(fromName) : null;
+  // Which side of the target the spanker ends up on: the side with room, else the side
+  // they're walking in from. Both figures then face the same way (target's back to them).
+  let side;
+  if (target.x < 90) side = 1;
+  else if (target.x > vw - 90) side = -1;
+  else side = from && from.x < target.x ? -1 : 1;
+  const face = -side;
+  const FOOT_Y = 18; // feet a little below the icon's center, so the figure stands over it
+  const end = { x: side * 44, y: FOOT_Y };
+  let start = from ? { x: from.x - target.x, y: from.y - target.y + FOOT_Y } : { x: side * 160, y: FOOT_Y };
+  if (Math.hypot(start.x - end.x, start.y - end.y) < 50) start = { x: side * 150, y: FOOT_Y };
+  // Keep the walker's start on screen.
+  start.x = Math.max(FIG_W / 2 - target.x, Math.min(vw - FIG_W / 2 - target.x, start.x));
+
+  const victim = stickFigure(stage, 'st-victim', face);
+  victim.style.transform = `translate(${-FIG_W / 2}px, ${FOOT_Y - FIG_H}px)`;
+  const walker = stickFigure(stage, 'st-walker', face);
+  const at = (p) => `translate(${p.x - FIG_W / 2}px, ${p.y - FIG_H}px)`;
+  walker.style.transform = at(start);
+
+  const later = (ms, fn) => setTimeout(() => stage.isConnected && fn(), ms);
+  later(300, () => {
+    walker.classList.add('st-walking');
+    if (walker.animate) {
+      walker.animate([{ transform: at(start) }, { transform: at(end) }], { duration: 2200, easing: 'ease-in-out', fill: 'forwards' });
+    } else {
+      walker.style.transform = at(end);
+    }
+  });
+  later(2100, () => victim.classList.add('st-bent'));
+  later(2500, () => {
+    walker.classList.remove('st-walking');
+    walker.classList.add('st-spanking');
+    victim.classList.add('st-spanked');
+  });
+  later(4050, () => {
+    walker.classList.remove('st-spanking');
+    walker.classList.add('st-cheer');
+    victim.classList.remove('st-spanked', 'st-bent');
+    victim.classList.add('st-ow');
+  });
+  later(5000, () => {
+    walker.classList.add('st-out');
+    victim.classList.add('st-out');
+  });
+
+  // Each smack lands 425ms into a 500ms swing: a SMACK! burst and a handprint on the butt.
+  const butt = { x: -12 * face, y: FOOT_Y - 38 };
+  [2925, 3425, 3925].forEach((t, i) => {
+    part(stage, 'sfx-handprint', '🖐️', { left: `${butt.x + (i - 1) * 6 * face}px`, top: `${butt.y + (i - 1) * 4}px`, animationDelay: `${t}ms` });
+    part(stage, 'sfx-smack', 'SMACK!', { left: `calc(${butt.x - face * 30}px + var(--nudge))`, top: `${butt.y - 46 - i * 6}px`, animationDelay: `${t}ms` });
+  });
+  part(stage, 'sfx-ow', 'OW!', { left: `calc(${face * 6}px + var(--nudge))`, top: `${FOOT_Y - FIG_H - 22}px` });
+}
+
+/**
+ * The player's icon that is actually on screen. The same player can be rendered in several
+ * places (the hidden lobby roster stays in the DOM during a game), so skip any that have no
+ * size - otherwise a gag in a game would land at the top-left corner.
+ */
 function findAnchor(name) {
   const escaped = window.CSS && CSS.escape ? CSS.escape(name) : String(name).replace(/["\\]/g, '\\$&');
-  return document.querySelector(`[data-player="${escaped}"]`);
+  for (const el of document.querySelectorAll(`[data-player="${escaped}"]`)) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) return el;
+  }
+  return null;
 }
 
 /** The column captions stack in (newest at the bottom), created on first use. */
@@ -298,7 +412,7 @@ function playNow(layer, { itemId, fromName, targetName, icon }) {
     stage.classList.add('sfx-simple');
     part(stage, 'sfx-simple-glyph', icon || '✨');
   } else {
-    gag.build(stage);
+    gag.build(stage, { fromName, targetName });
   }
 
   const self = !fromName || fromName === targetName;

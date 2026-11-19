@@ -34,7 +34,7 @@ Design, data model and rollout: [`docs/plans/store-implementation-plan.md`](../p
 | Constant | Value | Meaning |
 |---|---|---|
 | `STORE_ENABLED` | `'true'` to enable | Feature flag, on top of `BETTING_ENABLED` + accounts. Anything else = Store off everywhere |
-| `GAG_SLOT_MS` | 5000 | How long one gag occupies its target; hits on a busy player queue behind it |
+| `GAG_SLOT_MS` | 6000 | How long one gag occupies its target; hits on a busy player queue behind it |
 | `MAX_QUEUED_GAGS` | 4 | At most 4 gags playing + waiting on one player; more are refused until the line shortens |
 | `PUNCHBACK_WINDOW_MS` | 5000 | After being hit, the target may retaliate once, free, within 5s (see "Punch-back") |
 
@@ -64,7 +64,7 @@ always a reason to earn more tokens. Running out just means buying more; there's
 
 ## The catalog
 
-16 items (13 in v1, plus the Water Balloon, Pie and Lightning gags). Ids are stable and namespaced; prices are in tokens.
+17 items (13 in v1, plus the Water Balloon, Pie, Lightning and Spanking gags). Ids are stable and namespaced; prices are in tokens.
 
 ### Permanent cosmetics (7)
 
@@ -85,7 +85,7 @@ recordGameResult, `server/lobby.js` announceEntrance) and `public/js/shared/cosm
 plays on every phone; frames, name colors and titles are animated. Table Skin stays personal. The Premium Sticker Pack plugs into the existing
 sticker-unlock system rather than adding a parallel one.
 
-### Consumable actions (9)
+### Consumable actions (10)
 
 | Item | Price / charge | Target | Show (self-resets) |
 |---|---|---|---|
@@ -98,6 +98,7 @@ sticker-unlock system rather than adding a parallel one.
 | 💦 **Water Balloon** | 60 | another player | ~4.5s: a wobbly balloon is lobbed in and bursts in a splash ring and droplets; their icon turns blue and shivers, drips and a puddle stay |
 | 🥧 **Pie in the Face** | 90 | another player | ~5s: a pie flies in and smacks flat; a blob of cream with a cherry slowly slides down their icon and drips off |
 | ⚡ **Lightning Strike** | 150 | another player | ~4.5s: a storm cloud, the whole screen flashes, a bolt strikes with "ZAP!" and sparks; their icon is left charred and smoking, with thunder |
+| 🍑 **Spanking** | 300 | another player | ~5.6s, the priciest gag: a lime stick figure pops out of the sender's icon and walks across the screen to the target; the target gets a white stick figure that bends over; three smacks (arm wind-up, "SMACK!", red handprints, footsteps + smack sounds), then the target hops around yelling "OW!" while the sender's figure cheers. If the sender isn't on screen, their figure walks in from the side |
 
 Every gag also shows a caption at the top of the screen ("🥊 Dana punched Yossi!") and plays a
 stronger vibration pattern. Things that fly in come from whichever side of the target has more room.

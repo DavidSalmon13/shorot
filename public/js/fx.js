@@ -199,6 +199,16 @@ export const sfx = {
     noise(2.2, { gain: 0.5, delay: 0.5, freq: 260 });
     slide(90, 30, 1.8, { type: 'sine', gain: 0.25, delay: 0.5 });
   },
+  // Footsteps across the room, three sharp smacks, then a yelp.
+  spank() {
+    for (let i = 0; i < 9; i++) tone(i % 2 ? 160 : 190, 0.05, { type: 'triangle', gain: 0.07, delay: 0.35 + i * 0.24 });
+    [2.925, 3.425, 3.925].forEach((t) => {
+      noise(0.09, { gain: 0.7, delay: t, freq: 2500, type: 'highpass' });
+      noise(0.12, { gain: 0.35, delay: t, freq: 500 });
+    });
+    slide(820, 360, 0.45, { type: 'triangle', gain: 0.1, delay: 4.1 });
+    slide(700, 300, 0.35, { type: 'triangle', gain: 0.08, delay: 4.6 });
+  },
   // A royal fanfare with a shimmer on top.
   royal() {
     [392, 523, 659, 784].forEach((freq, i) => tone(freq, 0.16, { type: 'square', gain: 0.05, delay: i * 0.12 }));
