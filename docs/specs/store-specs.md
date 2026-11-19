@@ -88,14 +88,19 @@ sticker-unlock system rather than adding a parallel one.
 
 ### Consumable actions (6)
 
-| Item | Price / charge | Target | Visual (~1s, self-resets) |
+| Item | Price / charge | Target | Show (self-resets) |
 |---|---|---|---|
-| 😂 **Taunt Burst** | 10 | another player | A laugh-emoji burst pops over their icon |
-| 🎺 **Loser Fanfare** | 40 | another player | A sad-trombone note (and sound) over their icon |
-| 💣 **Confetti Self-Bomb** | 50 | yourself | Confetti rains on your own icon |
-| 🍅 **Tomato Throw** | 80 | another player | A tomato splats on their icon, drips, fades |
-| 🥊 **Boxing Glove** | 100 | another player | A glove flies in and connects; the icon recoils/shakes, "POW!" + a brief black-eye, then resets |
-| 👑 **Crown a Player** | 120 | another player | A crown descends onto their icon (a positive gag) |
+| 😂 **Taunt Burst** | 10 | another player | ~3s: a giant laughing face wobbles over their icon, laugh emojis fly out, a bouncing "HA HA HA!", a laugh sound; their icon shakes |
+| 🎺 **Loser Fanfare** | 40 | another player | ~4s: a trumpet blows droopy notes at them, a rain cloud drips over their greyed-out, drooping icon, sad trombone |
+| 💣 **Confetti Self-Bomb** | 50 | yourself | ~4s: a fizzing bomb lands on your icon, a flash + shockwave + 💥, 60 pieces of confetti burst across the screen; your icon glows |
+| 🍅 **Tomato Throw** | 80 | another player | ~5s: a tomato is lobbed in an arc and splats, juice flies, a red splat with drips stays on their icon; their icon shakes |
+| 🥊 **Boxing Glove** | 100 | another player | ~4.5s: a glove winds up and smashes in with an impact flash and a comic "POW!", then dizzy stars orbit their head and a 🩹 stays on; their icon wobbles |
+| 👑 **Crown a Player** | 120 | another player | ~5s: a golden halo, a crown floats down and sits on their icon with sparkles, a royal fanfare; their icon glows |
+
+Every gag also shows a caption at the top of the screen ("🥊 Dana punched Yossi!") and plays a
+stronger vibration pattern. Things that fly in come from whichever side of the target has more room.
+Code: `public/js/shared/storeFx.js` (parts + timings), sounds in `public/js/fx.js`, styles in
+`public/style.css` ("Store gags"). With reduced motion on, only the item's icon fades in and out.
 
 The 🥊 boxing glove is the headline item. All the targeted ones share one flow and one animation
 pipeline; only the art and sound differ.
@@ -125,8 +130,8 @@ A consumable action is a socket event, broadcast to the room, purely visual:
 4. The server validates: the feature is on, the actor is signed in, the actor has a charge, the target
    is in the room, and no cooldown is active (see below). If all pass, it **consumes one charge** and
    broadcasts the action to the whole room.
-5. Every phone plays the animation on the target's icon — wherever that player is rendered — for about
-   a second, then it resets. It never covers a button or blocks input.
+5. Every phone plays the show on the target's icon — wherever that player is rendered, following it if
+   the screen re-renders — for 3-5 seconds (see the table above), then it resets. It never covers a button or blocks input.
 
 If validation fails (no charge, cooldown active, target gone), nothing is consumed and the actor gets a
 short message; no animation plays on anyone's screen.

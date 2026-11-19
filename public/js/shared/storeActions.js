@@ -4,7 +4,7 @@
  * consumables gets a small tray (#store-action-row); tapping an item enters pick-target
  * mode, tapping a player fires it. The server (server/lobby.js `storeAction`) validates,
  * spends a charge, and broadcasts `storeAction` to everyone, who each play the gag over the
- * target's avatar anchor. Purely cosmetic and ~1s long; never touches gameplay. See
+ * target's avatar anchor (storeFx.js). Purely cosmetic, a few seconds long; never touches gameplay. See
  * docs/specs/store-specs.md.
  *
  * Avatar anchors are any element carrying `data-player="<name>"` (the lobby roster and the
@@ -12,18 +12,7 @@
  * instead, so an action always lands visibly for everyone.
  */
 
-import { sfx, haptics } from '../fx.js';
-
-// Per-item feedback. The emoji shown is the catalog icon; this only maps the sound/haptic.
-// Kept to the existing fx.js palette so Step 3 adds no new audio code.
-const ITEM_FX = {
-  taunt: { sound: () => sfx.flip(), haptic: () => haptics.tap() },
-  fanfare: { sound: () => sfx.buzzer(), haptic: () => haptics.warn() },
-  confetti_bomb: { sound: () => sfx.win(), haptic: () => haptics.success() },
-  tomato: { sound: () => sfx.error(), haptic: () => haptics.warn() },
-  glove: { sound: () => sfx.scoreDown(), haptic: () => haptics.warn() },
-  crown: { sound: () => sfx.win(), haptic: () => haptics.success() },
-};
+import { playStoreFx } from './storeFx.js';
 
 const row = document.getElementById('store-action-row');
 const layer = document.getElementById('store-fx-layer');
@@ -163,48 +152,9 @@ function fire(itemId, targetName) {
   });
 }
 
-/** Plays the ~1s gag over the target's on-screen avatar, or center-stage if they're elsewhere. */
+/** Plays the gag over the target's avatar (see storeFx.js). */
 function playAction({ itemId, fromName, targetName }) {
-  if (!layer) return;
-  const fx = ITEM_FX[itemId];
-  if (fx) {
-    fx.sound();
-    fx.haptic();
-  }
-
-  const el = document.createElement('div');
-  el.className = `store-fx store-fx-${itemId}`;
-  const glyph = document.createElement('span');
-  glyph.className = 'store-fx-glyph';
-  glyph.textContent = iconFor(itemId);
-  el.appendChild(glyph);
-
-  const anchor = document.querySelector(`[data-player="${cssEscape(targetName)}"]`);
-  if (anchor) {
-    const r = anchor.getBoundingClientRect();
-    el.style.left = `${r.left + r.width / 2}px`;
-    el.style.top = `${r.top + r.height / 2}px`;
-    // Briefly jolt the avatar being hit.
-    anchor.classList.add('store-hit');
-    setTimeout(() => anchor.classList.remove('store-hit'), 600);
-  } else {
-    // Target not rendered on this screen - float center so the gag still reads.
-    el.classList.add('store-fx-floating');
-    el.style.left = '50%';
-    el.style.top = '45%';
-  }
-
-  if (fromName && fromName !== targetName) {
-    const tag = document.createElement('span');
-    tag.className = 'store-fx-from';
-    tag.textContent = fromName;
-    el.appendChild(tag);
-  }
-
-  layer.appendChild(el);
-  el.addEventListener('animationend', () => el.remove());
-  // Safety net if animationend never fires (reduced-motion / interrupted node).
-  setTimeout(() => el.remove(), 2000);
+  playStoreFx(layer, { itemId, fromName, targetName, icon: iconFor(itemId) });
 }
 
 let toastTimer = null;
@@ -220,13 +170,6 @@ function toast(message) {
   box.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => box.classList.remove('show'), 1800);
-}
-
-// CSS.escape isn't on every target browser; fall back to escaping the quote/backslash that
-// could break the attribute selector (player names are already length/charset validated).
-function cssEscape(value) {
-  if (window.CSS && CSS.escape) return CSS.escape(value);
-  return String(value).replace(/["\\]/g, '\\$&');
 }
 
 export function initStore(nextSocket, { getMyName: nameGetter } = {}) {

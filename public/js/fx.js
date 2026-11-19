@@ -53,6 +53,52 @@ function tone(freq, duration, { type = 'sine', gain = 0.12, delay = 0 } = {}) {
   osc.stop(start + duration + 0.02);
 }
 
+// A burst of filtered white noise - thuds, splats and booms for the Store gags.
+function noise(duration, { gain = 0.2, delay = 0, freq = 1200, type = 'lowpass' } = {}) {
+  if (muted) return;
+  const ctx = getAudioCtx();
+  if (!ctx || ctx.state !== 'running') return;
+  const length = Math.max(1, Math.floor(ctx.sampleRate * duration));
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  const filter = ctx.createBiquadFilter();
+  filter.type = type;
+  filter.frequency.value = freq;
+  const g = ctx.createGain();
+  const start = ctx.currentTime + delay;
+  g.gain.setValueAtTime(gain, start);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  src.connect(filter);
+  filter.connect(g);
+  g.connect(ctx.destination);
+  src.start(start);
+  src.stop(start + duration + 0.02);
+}
+
+// A pitch slide (start -> end Hz) - whooshes and the drooping trombone.
+function slide(from, to, duration, { type = 'sawtooth', gain = 0.08, delay = 0 } = {}) {
+  if (muted) return;
+  const ctx = getAudioCtx();
+  if (!ctx || ctx.state !== 'running') return;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type;
+  const start = ctx.currentTime + delay;
+  osc.frequency.setValueAtTime(from, start);
+  osc.frequency.exponentialRampToValueAtTime(to, start + duration);
+  g.gain.setValueAtTime(0, start);
+  g.gain.linearRampToValueAtTime(gain, start + 0.03);
+  g.gain.setValueAtTime(gain, start + duration * 0.8);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  osc.connect(g);
+  g.connect(ctx.destination);
+  osc.start(start);
+  osc.stop(start + duration + 0.02);
+}
+
 export const sfx = {
   click() {
     tone(520, 0.06, { type: 'square', gain: 0.05 });
@@ -93,6 +139,50 @@ export const sfx = {
     tone(150, 0.5, { type: 'sawtooth', gain: 0.1 });
     tone(155, 0.5, { type: 'square', gain: 0.05 });
     tone(110, 0.35, { type: 'sawtooth', gain: 0.08, delay: 0.32 });
+  },
+
+  // ---- Store gags (public/js/shared/storeFx.js) ----
+  // "Ha-ha-ha-ha": bouncing syllables, twice.
+  laugh() {
+    [0, 1].forEach((round) => {
+      [620, 560, 640, 540, 600].forEach((freq, i) => {
+        slide(freq * 1.15, freq, 0.11, { type: 'triangle', gain: 0.1, delay: round * 0.75 + i * 0.13 });
+      });
+    });
+  },
+  // The classic four-note sad trombone, the last one wobbling down.
+  sadTrombone() {
+    [392, 370, 349].forEach((freq, i) => slide(freq, freq * 0.97, 0.38, { gain: 0.07, delay: i * 0.42 }));
+    slide(330, 240, 1.3, { gain: 0.08, delay: 1.26 });
+    noise(1.3, { gain: 0.015, delay: 1.26, freq: 600 });
+  },
+  // Fuse hiss, then a deep boom and a pop of party horns.
+  explosion() {
+    noise(0.8, { gain: 0.05, freq: 5000, type: 'highpass' });
+    noise(1.1, { gain: 0.45, delay: 0.85, freq: 500 });
+    slide(120, 35, 0.9, { type: 'sine', gain: 0.25, delay: 0.85 });
+    [784, 988, 1175, 1568].forEach((freq, i) => tone(freq, 0.2, { type: 'triangle', gain: 0.08, delay: 1.1 + i * 0.07 }));
+  },
+  // Whoosh in, wet squelch, then drips.
+  splat() {
+    noise(0.4, { gain: 0.08, freq: 2500, type: 'bandpass' });
+    noise(0.35, { gain: 0.4, delay: 0.42, freq: 900 });
+    slide(260, 70, 0.3, { type: 'sine', gain: 0.2, delay: 0.42 });
+    [0, 1, 2].forEach((i) => tone(1400 - i * 150, 0.06, { type: 'sine', gain: 0.06, delay: 1.0 + i * 0.35 }));
+  },
+  // Wind-up whoosh, a heavy thump, then a dizzy "tweet-tweet".
+  punch() {
+    slide(300, 1200, 0.3, { type: 'sine', gain: 0.05 });
+    noise(0.25, { gain: 0.55, delay: 0.32, freq: 700 });
+    slide(160, 40, 0.35, { type: 'sine', gain: 0.35, delay: 0.32 });
+    [0, 1, 2, 3].forEach((i) => tone(i % 2 ? 1760 : 2093, 0.08, { type: 'sine', gain: 0.05, delay: 0.9 + i * 0.16 }));
+  },
+  // A royal fanfare with a shimmer on top.
+  royal() {
+    [392, 523, 659, 784].forEach((freq, i) => tone(freq, 0.16, { type: 'square', gain: 0.05, delay: i * 0.12 }));
+    tone(1046, 0.8, { type: 'triangle', gain: 0.14, delay: 0.5 });
+    tone(784, 0.8, { type: 'triangle', gain: 0.08, delay: 0.5 });
+    [2093, 2637, 3136, 2637, 3136].forEach((freq, i) => tone(freq, 0.12, { type: 'sine', gain: 0.03, delay: 0.9 + i * 0.12 }));
   },
 };
 
