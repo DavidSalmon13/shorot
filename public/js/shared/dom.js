@@ -16,6 +16,7 @@ export const screens = {
   generating: document.getElementById('generating-screen'),
   game: document.getElementById('game-screen'),
   imposterReporting: document.getElementById('imposter-reporting-screen'),
+  imposterAccusing: document.getElementById('imposter-accuse-screen'),
   imposterResults: document.getElementById('imposter-results-screen'),
   teamSelect: document.getElementById('team-select-screen'),
   codenames: document.getElementById('codenames-screen'),
@@ -45,7 +46,7 @@ export function showScreen(name) {
 }
 
 export function showGenerating(game) {
-  if (game === 'codenames') {
+  if (game === 'codenames' || game === 'imposterBoard') {
     generatingTitle.textContent = 'Building the board…';
     generatingSubtitle.textContent = 'Asking ChatGPT for 25 words.';
   } else if (game === 'musictimeline') {

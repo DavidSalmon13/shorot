@@ -41,6 +41,19 @@ A same-room party word game. Players join a shared room on their phones via one 
 7. All role delivery is **private per-socket** — no player ever sees another player's role/word/hint.
 8. If the OpenAI call fails, the round is aborted, votes are cleared, everyone returns to the lobby, and the host can press Start again.
 
+## Board mode
+
+A second way to play a round, picked on the same vote screen as the difficulty.
+
+- The vote screen offers **Easy / Medium / Hard / Board**. Most votes wins; a tie goes to the earlier option in that order, so Board only wins outright.
+- If Board wins, ChatGPT builds a **5x5 board of 25 single-word nouns**, the same way Codenames does (same prompt via `server/lib/wordGrid.js`, honouring the room's language and theme; Board mode keeps its own rolling avoid-list).
+- The server picks **5 random cards** as the crew's secret cards. Imposters are picked exactly as in word mode.
+- **Crew** see the board with their 5 cards highlighted. **Imposters** see the same board with nothing highlighted. Nobody gets a word or a hint.
+- Play is verbal: each crew member says a word linked to one or more of the highlighted cards, and the imposter tries to blend in by working out which cards they are. The app does no guessing.
+- Instead of End Round, the host has **Vote on Imposter**. Every player dealt into the round votes for one other player (not themselves) and can change their vote until everyone connected has voted. Players who leave are not waited on.
+- The single most-voted player is **caught** (eliminated). A tie for the most votes catches nobody.
+- Scoring is the same as word mode: imposter 3 if not caught, 0 if caught; crew +1 if not caught, -1 if caught. The results table shows each player's vote count.
+
 ## Reconnect handling
 
 - Client stores its name in `localStorage` on join.

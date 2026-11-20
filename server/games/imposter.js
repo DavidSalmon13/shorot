@@ -2,10 +2,17 @@
 
 const { shuffle } = require('../lib/shuffle');
 const { chatCompletionJson } = require('../lib/openai');
+const { generateWordGrid } = require('../lib/wordGrid');
 
 const MIN_PLAYERS = 3;
 const TWO_IMPOSTER_THRESHOLD = 5;
 const LEVELS = ['easy', 'medium', 'hard'];
+// 'board' is Board mode: a 5x5 word board instead of a word + hint. It's voted on alongside the
+// difficulty levels, and listed last so a tie still goes to the easier word-mode level.
+const BOARD = 'board';
+const VOTE_OPTIONS = [...LEVELS, BOARD];
+const BOARD_SIZE = 25;
+const BOARD_HIGHLIGHT_COUNT = 5;
 
 const LEVEL_SPEC = {
   easy: {
@@ -55,7 +62,15 @@ const WORD_CATEGORIES = [
   'a building or structure',
 ];
 
-const SAVED_FIELDS = ['currentLevel', 'lastImposterNames', 'usedWords', 'imposterRoundResults'];
+const SAVED_FIELDS = [
+  'currentLevel',
+  'lastImposterNames',
+  'usedWords',
+  'imposterRoundResults',
+  'board',
+  'highlighted',
+  'boardUsedWords',
+];
 
 /** Imposter's namespaced room state. These fields were historically un-prefixed and flat;
  * the per-player role/word/hint/vote still live on the players Map, not here. */
@@ -64,7 +79,10 @@ function createState() {
     currentLevel: null,
     lastImposterNames: [], // avoid picking the same imposter(s) back-to-back; persists across games
     usedWords: [], // rolling avoid-list sent to ChatGPT; persists across games
-    imposterRoundResults: null, // [{ name, role, eliminated, points }], ephemeral for the round
+    imposterRoundResults: null, // [{ name, role, eliminated, points, votes? }], ephemeral for the round
+    board: null, // Board mode: [word x 25] for the round, else null
+    highlighted: null, // Board mode: indices into board the crew sees highlighted (never sent to imposters)
+    boardUsedWords: [], // rolling avoid-list for Board mode's ChatGPT boards; persists across games
   };
 }
 
@@ -72,6 +90,8 @@ function clearState(room) {
   // Only the per-round fields reset; lastImposterNames and usedWords persist across games.
   room.state.imposter.currentLevel = null;
   room.state.imposter.imposterRoundResults = null;
+  room.state.imposter.board = null;
+  room.state.imposter.highlighted = null;
 }
 
 function broadcastVoting(ctx, roomCode, room) {
@@ -81,13 +101,13 @@ function broadcastVoting(ctx, roomCode, room) {
 }
 
 function tallyLevel(ctx, room) {
-  const counts = { easy: 0, medium: 0, hard: 0 };
+  const counts = { easy: 0, medium: 0, hard: 0, board: 0 };
   for (const name of ctx.connectedNames(room)) {
     const vote = room.players.get(name).vote;
     if (vote) counts[vote] += 1;
   }
-  const maxCount = Math.max(...LEVELS.map((l) => counts[l]));
-  return LEVELS.find((l) => counts[l] === maxCount);
+  const maxCount = Math.max(...VOTE_OPTIONS.map((l) => counts[l]));
+  return VOTE_OPTIONS.find((l) => counts[l] === maxCount);
 }
 
 async function generateWordAndHint(room, level) {
@@ -137,22 +157,57 @@ function failImposterRound(ctx, roomCode, room, error) {
   ctx.roomEmit(roomCode, 'startFailed', { error });
 }
 
+/** Board mode content: a fresh 25-word board and the 5 cards the crew sees highlighted. */
+async function generateBoard(room) {
+  const words = await generateWordGrid({
+    count: BOARD_SIZE,
+    avoid: room.state.imposter.boardUsedWords.slice(-100),
+    language: room.wordLanguage,
+    theme: room.wordTheme,
+  });
+  const highlighted = shuffle(words.map((_, i) => i))
+    .slice(0, BOARD_HIGHLIGHT_COUNT)
+    .sort((a, b) => a - b);
+  return { board: shuffle(words), highlighted };
+}
+
+/** What one player is shown for the round: word mode's word/hint, or Board mode's board. */
+function rolePayload(room, p) {
+  const { board, highlighted } = room.state.imposter;
+  if (!board) return { role: p.role, word: p.word, hint: p.hint, mode: 'word' };
+  return {
+    role: p.role,
+    word: null,
+    hint: null,
+    mode: BOARD,
+    board: p.role ? board : null,
+    // Only the crew knows which cards are highlighted - that's what the imposter has to work out.
+    highlighted: p.role === 'crew' ? highlighted : null,
+  };
+}
+
 async function finishVoting(ctx, roomCode, room) {
   const level = tallyLevel(ctx, room);
+  const boardMode = level === BOARD;
   room.state.imposter.currentLevel = level;
   room.phase = 'generating';
-  ctx.roomEmit(roomCode, 'generating', { game: 'imposter', level });
+  ctx.roomEmit(roomCode, 'generating', { game: boardMode ? 'imposterBoard' : 'imposter', level });
 
-  let word, hint;
+  let word = null;
+  let hint = null;
+  let boardContent = null;
   try {
-    ({ word, hint } = await generateWordAndHint(room, level));
+    if (boardMode) boardContent = await generateBoard(room);
+    else ({ word, hint } = await generateWordAndHint(room, level));
   } catch (err) {
-    console.error('generateWordAndHint failed:', err.message);
+    console.error(boardMode ? 'generateBoard failed:' : 'generateWordAndHint failed:', err.message);
     return failImposterRound(
       ctx,
       roomCode,
       room,
-      'Could not reach ChatGPT to pick a word. Please try starting again.'
+      boardMode
+        ? 'Could not reach ChatGPT to build the board. Please try starting again.'
+        : 'Could not reach ChatGPT to pick a word. Please try starting again.'
     );
   }
 
@@ -169,14 +224,24 @@ async function finishVoting(ctx, roomCode, room) {
     );
   }
 
-  room.state.imposter.usedWords.push(word);
-  if (room.state.imposter.usedWords.length > 80) room.state.imposter.usedWords.splice(0, room.state.imposter.usedWords.length - 80);
+  const st = room.state.imposter;
+  if (boardMode) {
+    st.board = boardContent.board;
+    st.highlighted = boardContent.highlighted;
+    st.boardUsedWords.push(...boardContent.board);
+    if (st.boardUsedWords.length > 150) st.boardUsedWords.splice(0, st.boardUsedWords.length - 150);
+  } else {
+    st.board = null;
+    st.highlighted = null;
+    st.usedWords.push(word);
+    if (st.usedWords.length > 80) st.usedWords.splice(0, st.usedWords.length - 80);
+  }
 
   const imposterCount = names.length >= TWO_IMPOSTER_THRESHOLD ? 2 : 1;
-  const fresh = names.filter((n) => !room.state.imposter.lastImposterNames.includes(n));
+  const fresh = names.filter((n) => !st.lastImposterNames.includes(n));
   const candidates = fresh.length >= imposterCount ? fresh : names;
   const imposterNames = shuffle(candidates).slice(0, imposterCount);
-  room.state.imposter.lastImposterNames = imposterNames;
+  st.lastImposterNames = imposterNames;
   // Only connected players are dealt in. room.players also holds everyone who closed the
   // app without leaving; dealing them a role would score them as eliminated (a loss).
   for (const [name, p] of room.players) {
@@ -194,14 +259,15 @@ async function finishVoting(ctx, roomCode, room) {
       p.hint = null;
     }
     p.eliminatedReport = null;
+    p.accuseVote = null;
   }
 
-  room.state.imposter.imposterRoundResults = null;
+  st.imposterRoundResults = null;
   room.phase = 'playing';
   ctx.roomEmit(roomCode, 'gameStarted', { level });
   for (const [, p] of room.players) {
     if (p.connected) {
-      ctx.io.to(p.socketId).emit('role', { role: p.role, word: p.word, hint: p.hint });
+      ctx.io.to(p.socketId).emit('role', rolePayload(room, p));
     }
   }
 }
@@ -301,6 +367,76 @@ function maybeFinishImposterReporting(ctx, roomCode, room) {
   if (allAnswered) finishImposterReporting(ctx, roomCode, room);
 }
 
+/** Board mode's end of round: everyone dealt in votes for who they think the imposter is. */
+function accuseVoters(room) {
+  // Only connected players are waited on; someone who left can't hold the vote up.
+  return playersInImposterRound(room).filter((n) => room.players.get(n).connected);
+}
+
+function accusingStatus(room, p) {
+  const voters = accuseVoters(room);
+  return {
+    host: room.hostName,
+    candidates: playersInImposterRound(room),
+    total: voters.length,
+    voted: voters.filter((n) => room.players.get(n).accuseVote).length,
+    myVote: (p && p.accuseVote) || null,
+    canVote: !!(p && (p.role === 'imposter' || p.role === 'crew')),
+  };
+}
+
+function broadcastImposterAccusing(ctx, roomCode, room) {
+  for (const [, p] of room.players.entries()) {
+    if (!p.connected || !p.socketId) continue;
+    ctx.io.to(p.socketId).emit('imposterAccusing', accusingStatus(room, p));
+  }
+}
+
+/**
+ * Tallies the accusation votes: the single most-voted player is caught (eliminated). A tie for
+ * the top spot catches nobody. Scores with the same points as word mode's self-reports.
+ */
+function finishImposterAccusing(ctx, roomCode, room) {
+  const names = playersInImposterRound(room);
+  const votes = Object.fromEntries(names.map((n) => [n, 0]));
+  for (const n of names) {
+    const target = room.players.get(n).accuseVote;
+    if (target && target in votes) votes[target] += 1;
+  }
+  const top = Math.max(0, ...Object.values(votes));
+  const leaders = names.filter((n) => votes[n] === top);
+  const caught = top > 0 && leaders.length === 1 ? leaders[0] : null;
+
+  const results = names.map((name) => {
+    const p = room.players.get(name);
+    const eliminated = name === caught;
+    const points = imposterPointsFor(p.role, eliminated);
+    ctx.addScore(room, name, points);
+    return { name, role: p.role, eliminated, points, votes: votes[name] };
+  });
+  room.state.imposter.imposterRoundResults = results;
+  ctx.recordGameResult(
+    room,
+    'imposter',
+    results.map((r) => ({
+      name: r.name,
+      role: r.role,
+      won: !r.eliminated,
+      points: r.points,
+      details: { eliminated: r.eliminated, mode: BOARD, votes: r.votes },
+    }))
+  );
+  room.phase = 'roundResults';
+  broadcastImposterResults(ctx, roomCode, room);
+}
+
+function maybeFinishImposterAccusing(ctx, roomCode, room) {
+  if (room.game !== 'imposter' || room.phase !== 'accusing') return;
+  const voters = accuseVoters(room);
+  if (voters.length === 0) return;
+  if (voters.every((n) => room.players.get(n).accuseVote)) finishImposterAccusing(ctx, roomCode, room);
+}
+
 function onChoose(ctx, roomCode, room) {
   for (const p of room.players.values()) p.vote = null;
   room.phase = 'voting';
@@ -317,10 +453,16 @@ function reconnectPayload(ctx, room, existingPlayer) {
       game: room.game,
       phase: room.phase,
       level: room.state.imposter.currentLevel,
-      role: existingPlayer.role,
-      word: existingPlayer.word,
-      hint: existingPlayer.hint,
+      ...rolePayload(room, existingPlayer),
       host: room.hostName,
+    };
+  }
+  if (room.phase === 'accusing') {
+    return {
+      ok: true,
+      game: room.game,
+      phase: room.phase,
+      ...accusingStatus(room, existingPlayer),
     };
   }
   if (room.phase === 'reporting') {
@@ -356,6 +498,7 @@ function reconnectPayload(ctx, room, existingPlayer) {
       game: room.game,
       phase: room.phase,
       level: room.state.imposter.currentLevel,
+      boardMode: room.state.imposter.currentLevel === BOARD,
       host: room.hostName,
     };
   }
@@ -389,12 +532,16 @@ function onDisconnect(ctx, roomCode, room, name) {
     }
     broadcastImposterReporting(ctx, roomCode, room);
     maybeFinishImposterReporting(ctx, roomCode, room);
+  } else if (room.phase === 'accusing') {
+    broadcastImposterAccusing(ctx, roomCode, room);
+    maybeFinishImposterAccusing(ctx, roomCode, room);
   }
 }
 
 function onReconnectBroadcast(ctx, roomCode, room) {
   if (room.phase === 'voting') broadcastVoting(ctx, roomCode, room);
   else if (room.phase === 'reporting') broadcastImposterReporting(ctx, roomCode, room);
+  else if (room.phase === 'accusing') broadcastImposterAccusing(ctx, roomCode, room);
   else if (room.phase === 'roundResults') broadcastImposterResults(ctx, roomCode, room);
 }
 
@@ -445,7 +592,7 @@ function registerHandlers(ctx, io, socket) {
     if (room.game !== 'imposter' || room.phase !== 'voting') {
       return callback({ ok: false, error: 'Voting is not open' });
     }
-    if (!LEVELS.includes(level)) return callback({ ok: false, error: 'Invalid level' });
+    if (!VOTE_OPTIONS.includes(level)) return callback({ ok: false, error: 'Invalid level' });
 
     const name = socket.data.name;
     const p = room.players.get(name);
@@ -482,6 +629,53 @@ function registerHandlers(ctx, io, socket) {
     callback({ ok: true });
     broadcastImposterReporting(ctx, roomCode, room);
     maybeFinishImposterReporting(ctx, roomCode, room);
+  });
+
+  socket.on('startImposterVote', (callback) => {
+    callback = callback || (() => {});
+    const roomCode = socket.data.roomCode;
+    const room = ctx.getRoom(socket);
+    if (!room) return callback({ ok: false, error: 'Not in a room' });
+    if (room.game !== 'imposter' || room.phase !== 'playing') {
+      return callback({ ok: false, error: 'Round is not in progress' });
+    }
+    if (!room.state.imposter.board) {
+      return callback({ ok: false, error: 'Voting on the imposter is only in Board mode' });
+    }
+    if (socket.data.name !== room.hostName) {
+      return callback({ ok: false, error: 'Only the host can start the vote' });
+    }
+
+    for (const p of room.players.values()) p.accuseVote = null;
+    room.state.imposter.imposterRoundResults = null;
+    room.phase = 'accusing';
+    callback({ ok: true });
+    broadcastImposterAccusing(ctx, roomCode, room);
+  });
+
+  socket.on('accuseImposter', (target, callback) => {
+    callback = callback || (() => {});
+    const roomCode = socket.data.roomCode;
+    const room = ctx.getRoom(socket);
+    if (!room) return callback({ ok: false, error: 'Not in a room' });
+    if (room.game !== 'imposter' || room.phase !== 'accusing') {
+      return callback({ ok: false, error: 'Voting is not open' });
+    }
+    const name = socket.data.name;
+    const p = room.players.get(name);
+    if (!p || (p.role !== 'imposter' && p.role !== 'crew')) {
+      return callback({ ok: false, error: 'Not in this round' });
+    }
+    if (target === name) return callback({ ok: false, error: "You can't vote for yourself" });
+    if (!playersInImposterRound(room).includes(target)) {
+      return callback({ ok: false, error: 'Pick a player from this round' });
+    }
+
+    // A vote can be changed until the last one comes in.
+    p.accuseVote = target;
+    callback({ ok: true });
+    broadcastImposterAccusing(ctx, roomCode, room);
+    maybeFinishImposterAccusing(ctx, roomCode, room);
   });
 
   socket.on('reportEliminated', (eliminated, callback) => {

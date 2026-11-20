@@ -147,6 +147,7 @@ const wordThemeInput = document.getElementById('word-theme-input');
 
 // Fat setHost still toggles per-game chrome (deferred thin-down).
 const endRoundBtn = document.getElementById('end-round-btn');
+const voteImposterBtn = document.getElementById('vote-imposter-btn');
 const playAgainBtn = document.getElementById('play-again-btn');
 const playAgainWaiting = document.getElementById('play-again-waiting');
 const votingBackBtn = document.getElementById('voting-back-btn');
@@ -346,7 +347,9 @@ function setHost(hostName) {
   // Every player sees the host's lobby (game tiles, language, reset); non-hosts get an
   // "only the host" error when they tap a host-only control instead of not seeing it.
   updateAiofTile();
+  // Which of the two shows depends on the round's mode - see #game-screen.imp-board-mode in style.css.
   endRoundBtn.classList.toggle('hidden', !isHost);
+  voteImposterBtn.classList.toggle('hidden', !isHost);
   playAgainWaiting.classList.toggle('hidden', isHost);
   // Returning to the lobby is available to every player, not just the host.
   playAgainBtn.classList.remove('hidden');

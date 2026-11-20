@@ -1966,6 +1966,38 @@ button.secondary:active:not(:disabled) {
   justify-content: center;
 }
 
+/* ---------- Imposter Board mode (js/games/imposter.js) ---------- */
+
+/* The host's end-of-round button depends on the round's mode: End Round (word mode) or
+   Vote on Imposter (Board mode). main.js's setHost shows both to the host; this picks one. */
+#game-screen.imp-board-mode #end-round-btn,
+#game-screen:not(.imp-board-mode) #vote-imposter-btn {
+  display: none;
+}
+
+.imp-board {
+  margin: 0.75rem 0;
+}
+
+.imp-board .cn-card {
+  aspect-ratio: 5 / 4;
+}
+
+/* The crew's 5 secret cards. */
+.imp-board .cn-card.imp-hl {
+  background: var(--sun);
+  color: #2a1406;
+  border-color: #fff1c2;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 0 0 2px #fff1c2, 0 3px 0 #1a0b04;
+}
+
+.level-btn-note {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
 /* ---------- Codenames cards (play grid + game-over grid) ---------- */
 
 .cn-grid {
