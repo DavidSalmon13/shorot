@@ -6,6 +6,7 @@ import { renderScoreboard } from '../shared/scoreboard.js';
 import { confirmDialog } from '../shared/confirmDialog.js';
 import { emojiForName } from '../shared/playerEmoji.js';
 import { setTokenBalance } from '../shared/tokens.js';
+import { setInGameShop } from '../shared/storeActions.js';
 import { applyCosmetics } from '../shared/cosmetics.js';
 import { sfx, haptics, haptic } from '../fx.js';
 
@@ -1299,6 +1300,8 @@ function applyState(data) {
   bfSeatingPanel.classList.toggle('hidden', data.phase !== 'seating');
   bfTablePanel.classList.toggle('hidden', data.phase !== 'playing');
   bfGameoverPanel.classList.toggle('hidden', data.phase !== 'gameover');
+  // The 🛒 drop-down in the store tray: buy gags mid-hand without leaving the table.
+  setInGameShop(data.phase === 'playing');
 
   if (data.phase !== 'playing') {
     applyCheck(null);
@@ -1465,6 +1468,7 @@ export const Bluff = {
   },
 
   stop() {
+    setInGameShop(false);
     applyCheck(null);
     resetBuilder();
     if (bfCheckBuilder) bfCheckBuilder.classList.add('hidden');

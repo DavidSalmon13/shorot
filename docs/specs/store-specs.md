@@ -133,6 +133,12 @@ pipeline; only the art and sound differ.
   different item in the same slot swaps it; you can always un-equip back to plain.
 - **Consumables**: buying adds a charge (Buy more to stack them). The Store shows your current charge
   count per consumable.
+- **In-game shop (Bluff)**: while a Bluff hand is on the table, a signed-in player's gag tray gets a
+  🛒 button first. Tapping it drops down a list of the consumables only (icon, name, price, how many
+  you own) with a Buy button each, plus your balance; tapping outside closes it. A bought charge lands
+  in the tray right away, ready to tap and fire. It's the same purchase as the Store tab
+  (`POST /api/store/buy`); guests don't see the 🛒. Wired by `setInGameShop()` in
+  `public/js/shared/storeActions.js`, switched on from `public/js/games/bluff.js`.
 
 ## Consumable actions — the flow
 

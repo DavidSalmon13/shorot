@@ -5635,7 +5635,6 @@ body:has(.aiof-overlay:not(.hidden)) .store-action-row {
     opacity: 0;
   }
 }
-}
 
 /* ---------- Store consumable actions (public/js/shared/storeActions.js) ---------- */
 
@@ -5695,6 +5694,76 @@ body:has(.aiof-overlay:not(.hidden)) .store-action-row {
   font-weight: 800;
   line-height: 16px;
   text-align: center;
+}
+
+/* In-game shop (Bluff): the 🛒 button leads the tray and drops a consumables list upward. */
+.store-shop-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.5rem);
+  width: min(320px, calc(100vw - 1.6rem));
+  max-height: min(60vh, 440px);
+  overflow-y: auto;
+  padding: 0.5rem;
+  background: var(--glass-bg);
+  border: 2px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+  color: var(--text);
+  text-align: left;
+}
+
+.store-shop-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.2rem 0.3rem 0.5rem;
+  font-weight: 800;
+}
+
+.store-shop-balance {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.store-shop-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.3rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.store-shop-icon {
+  flex: none;
+  font-size: 1.5rem;
+  width: 1.8rem;
+  text-align: center;
+}
+
+.store-shop-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.store-shop-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.store-shop-owned {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.store-shop-buy {
+  flex: none;
+  width: auto;
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 /* Pick-target mode: every targetable avatar glows and pulses until one is tapped. */
