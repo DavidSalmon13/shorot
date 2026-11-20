@@ -73,13 +73,6 @@ app.use(express.static(path.join(__dirname, 'public'), {
     if (REVALIDATE_RE.test(filePath)) res.set('Cache-Control', 'no-cache');
   },
 }));
-// three.js for the 3D Store gags (public/js/shared/spank3d.js), served straight from the
-// pinned npm package: the core build, plus its example add-ons (GLTFLoader, SkeletonUtils).
-// Pinned version, so it's safe to cache hard.
-const THREE_DIR = path.resolve(path.dirname(require.resolve('three')), '..'); // .../node_modules/three
-const vendorOpts = { maxAge: '30d', immutable: true };
-app.use('/vendor/three/build', express.static(path.join(THREE_DIR, 'build'), vendorOpts));
-app.use('/vendor/three/jsm', express.static(path.join(THREE_DIR, 'examples', 'jsm'), vendorOpts));
 stats.registerStatsRoutes(app);
 accounts.registerAccountRoutes(app);
 

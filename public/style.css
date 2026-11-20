@@ -6453,152 +6453,140 @@ body.store-picking [data-player] {
   100% { opacity: 0; transform: translate(-50%, -260%) scale(1.4) rotate(-20deg); filter: grayscale(1); }
 }
 
-/* 🍑 Spanking: two cartoon humans (storeFx.js buildSpank). The walker is moved by a Web
-   Animation; poses are classes toggled on a timeline: st-walking -> st-spanking -> st-cheer,
-   and st-bent -> st-spanked -> st-ow on the victim. --face (1 / -1) flips a figure; the
-   shirt colour tells the two apart. */
-.sfx-stick {
-  --skin: #e2a77c;
-  --pants: #2f4a7a;
-  --shoe: #1d1d24;
-  --shirt: #e94b4b;
+/* 🍑 Spanking with the players' own photos (storeFx.js buildSpank). Each player is a
+   standing cut-out (.sfx-puppet) placed by its feet; the outer element carries the walk
+   (a Web Animation), the inner .pp-body the poses, pivoting at the feet. Timeline classes:
+   pp-walk -> pp-swing -> pp-cheer (sender), pp-bent -> pp-spanked -> pp-ow (target). */
+.sfx-puppet {
   position: absolute;
   left: 0;
   top: 0;
-  width: 56px; /* FIG_W / FIG_H in storeFx.js */
-  height: 92px;
+  width: 0;
+  height: 0;
   transition: opacity 0.5s;
-  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.55));
 }
 
-.sfx-stick.st-walker { --shirt: #7bc043; }
-.sfx-stick.st-victim { --shirt: #f2f2f2; --pants: #3a3f4a; }
-.sfx-stick.st-out { opacity: 0; }
+.sfx-puppet.pp-out { opacity: 0; }
 
-.sfx-stick .st-inner {
+.sfx-puppet .pp-shadow {
+  position: absolute;
+  left: -38px;
+  top: -7px;
+  width: 76px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.55) 0 40%, transparent 70%);
+}
+
+.sfx-puppet .pp-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -100%);
+}
+
+.sfx-puppet .pp-body {
   display: block;
-  width: 100%;
-  height: 100%;
-  animation: st-pop 0.35s cubic-bezier(0.2, 1.4, 0.3, 1) both;
+  height: 128px; /* PUPPET_H in storeFx.js */
+  transform-origin: 50% 100%;
+  transition: transform 0.35s cubic-bezier(0.3, 1.4, 0.5, 1);
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
+  animation: pp-pop 0.4s cubic-bezier(0.2, 1.4, 0.3, 1) both;
 }
 
-.sfx-stick.st-victim .st-inner { animation-delay: 0.5s; }
+.sfx-puppet.pp-victim .pp-body { animation-delay: 0.45s; }
 
-.sfx-stick svg {
+.sfx-puppet .pp-body img {
   display: block;
-  width: 100%;
   height: 100%;
-  overflow: visible;
-  transform: scaleX(var(--face, 1));
-  stroke: rgba(15, 15, 22, 0.75);
-  stroke-width: 0.7;
-  stroke-linejoin: round;
+  width: auto;
+  max-width: 130px;
+  object-fit: contain;
+  object-position: 50% 100%;
 }
 
-.sfx-stick .st-skin { fill: var(--skin); }
-.sfx-stick .st-shirt { fill: var(--shirt); }
-.sfx-stick .st-pants { fill: var(--pants); }
-.sfx-stick .st-shoe { fill: var(--shoe); }
-.sfx-stick .st-shirt-fold { fill: none; stroke: rgba(0, 0, 0, 0.18); stroke-width: 0.6; }
-.sfx-stick .st-head { fill: var(--skin); }
-
-.sfx-stick .st-body,
-.sfx-stick .st-arm,
-.sfx-stick .st-fore,
-.sfx-stick .st-leg,
-.sfx-stick .st-shin {
-  transform-box: view-box;
+.sfx-puppet .pp-body.pp-emoji {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font-size: 104px;
+  line-height: 1;
 }
 
-.sfx-stick .st-body { transform-origin: 22px 44px; transition: transform 0.3s ease; }
-.sfx-stick .st-arm { transform-origin: 22px 23px; }
-.sfx-stick .st-fore { transform-origin: 22px 32px; transform: rotate(-12deg); }
-.sfx-stick .st-leg { transform-origin: 22px 44px; }
-.sfx-stick .st-shin { transform-origin: 22px 56px; }
-.sfx-stick .st-arm-back { transform: rotate(12deg); }
-.sfx-stick .st-arm-front { transform: rotate(-8deg); }
-.sfx-stick .st-leg-a { transform: rotate(6deg); }
-.sfx-stick .st-leg-b { transform: rotate(-6deg); }
-
-/* The player's face (sticker or emoji) is the head; the plain head shows only without one. */
-.sfx-stick.st-has-face .st-head { display: none; }
-.sfx-stick .st-face image,
-.sfx-stick .st-face text {
-  stroke: none;
-  fill: #000;
-  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.7));
-}
-
-@keyframes st-pop {
-  0% { opacity: 0; transform: scale(0.2) translateY(20px); }
+@keyframes pp-pop {
+  0% { opacity: 0; transform: scale(0.2); }
   100% { opacity: 1; transform: none; }
 }
 
-/* Walking: legs and arms swing in opposition, the body bobs. */
-.st-walking .st-inner { animation: st-bob 0.24s ease-in-out infinite alternate; }
-.st-walking .st-leg-a { animation: st-swing 0.48s ease-in-out infinite alternate; }
-.st-walking .st-leg-b { animation: st-swing 0.48s ease-in-out infinite alternate-reverse; }
-.st-walking .st-arm-front { animation: st-swing 0.48s ease-in-out infinite alternate-reverse; }
-.st-walking .st-leg-a .st-shin { animation: st-knee 0.48s ease-in-out infinite alternate-reverse; }
-.st-walking .st-leg-b .st-shin { animation: st-knee 0.48s ease-in-out infinite alternate; }
-.st-walking .st-fore { transform: rotate(-35deg); }
-.st-walking .st-arm-back { animation: st-swing 0.48s ease-in-out infinite alternate; }
+/* Waddling walk: rocking side to side with a bounce on every step. */
+.pp-walk .pp-body { animation: pp-waddle 0.48s ease-in-out infinite; }
 
-@keyframes st-swing {
-  from { transform: rotate(28deg); }
-  to { transform: rotate(-28deg); }
+@keyframes pp-waddle {
+  0%, 100% { transform: rotate(-7deg) translateY(0); }
+  25% { transform: rotate(0deg) translateY(-9px); }
+  50% { transform: rotate(7deg) translateY(0); }
+  75% { transform: rotate(0deg) translateY(-9px); }
 }
 
-/* The knee bends as the leg swings back. */
-@keyframes st-knee {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(38deg); }
+/* The target bends over (away from the sender) and jolts on every smack. */
+.pp-bent .pp-body,
+.pp-spanked .pp-body { transform: rotate(var(--bend)); }
+.pp-spanked .pp-body { animation: pp-jolt 0.5s ease-out 3; }
+
+@keyframes pp-jolt {
+  0%, 82% { transform: rotate(var(--bend)); }
+  86% { transform: rotate(calc(var(--bend) * 1.25)) translate(calc(var(--side) * -10px), -10px) scale(1.04, 0.96); }
+  100% { transform: rotate(var(--bend)); }
 }
 
-@keyframes st-bob {
-  from { transform: translateY(0); }
-  to { transform: translateY(-3px); }
+/* The sender leans in and rocks with each swing. */
+.pp-swing .pp-body { animation: pp-swing 0.5s ease-in 3; }
+
+@keyframes pp-swing {
+  0% { transform: rotate(calc(var(--lean) * -0.5)); }
+  55% { transform: rotate(calc(var(--lean) * -0.8)) translateY(-4px); }
+  85% { transform: rotate(var(--lean)) translateY(2px); }
+  100% { transform: rotate(calc(var(--lean) * -0.5)); }
 }
 
-/* Spanking: the front arm winds up over the head and swings down, three times. */
-.st-spanking .st-arm-front { animation: st-spank 0.5s ease-in 3; }
-.st-spanking .st-body { transform: rotate(8deg); }
-.st-spanking .st-arm-front .st-fore { transform: rotate(-10deg); }
+/* Afterwards: the target hops around, the sender bounces in triumph. */
+.pp-ow .pp-body { animation: pp-hop 0.24s ease-in-out infinite alternate; }
+.pp-cheer .pp-body { animation: pp-bounce 0.3s ease-in-out infinite alternate; }
 
-@keyframes st-spank {
-  0% { transform: rotate(-150deg); }
-  55% { transform: rotate(-175deg); }
-  85% { transform: rotate(55deg); }
-  100% { transform: rotate(-150deg); }
+@keyframes pp-hop {
+  from { transform: translateY(0) rotate(-8deg); }
+  to { transform: translateY(-22px) rotate(8deg); }
 }
 
-/* The victim bends forward (butt out), and jolts on every smack. */
-.st-bent .st-body { transform: rotate(38deg); }
-.st-spanked .st-body { transform: rotate(38deg); }
-.st-spanked .st-inner { animation: st-jolt 0.5s ease-out 3; }
-
-@keyframes st-jolt {
-  0%, 80% { transform: none; }
-  86% { transform: translate(calc(var(--face) * 7px), -9px) rotate(calc(var(--face) * 8deg)); }
-  100% { transform: none; }
+@keyframes pp-bounce {
+  from { transform: translateY(0) scale(1); }
+  to { transform: translateY(-12px) scale(1.04); }
 }
 
-/* Afterwards: the victim hops around clutching, the spanker cheers. */
-.st-ow .st-inner { animation: st-hop 0.22s ease-in-out infinite alternate; }
-.st-ow .st-arm-back { transform: rotate(150deg); }
-.st-ow .st-arm-front { transform: rotate(120deg); }
-.st-cheer .st-arm-front { animation: st-cheer 0.3s ease-in-out infinite alternate; }
-.st-cheer .st-arm-back { transform: rotate(160deg); }
-.st-cheer .st-inner { animation: st-bob 0.3s ease-in-out infinite alternate; }
-
-@keyframes st-hop {
-  from { transform: translateY(0) rotate(-6deg); }
-  to { transform: translateY(-12px) rotate(6deg); }
+/* The spanking hand: raised up and back on the sender's side, swings down onto the target's
+   backside at 85% of each 0.5s swing (when the SMACK! lands). */
+.sfx-spank-hand {
+  left: var(--hx);
+  top: var(--hy);
+  font-size: 54px;
+  opacity: 0;
 }
 
-@keyframes st-cheer {
-  from { transform: rotate(-150deg); }
-  to { transform: rotate(-190deg); }
+.sfx-spank-hand.sfx-spank-hand-on {
+  animation: sfx-spank-swing 0.5s ease-in 3 forwards, sfx-spank-hand-fade 1.55s linear forwards;
+}
+
+@keyframes sfx-spank-swing {
+  0% { transform: translate(calc(-50% + var(--side) * 56px), calc(-50% - 70px)) rotate(calc(var(--side) * 50deg)); }
+  55% { transform: translate(calc(-50% + var(--side) * 62px), calc(-50% - 82px)) rotate(calc(var(--side) * 60deg)); }
+  85% { transform: translate(calc(-50% + var(--side) * 6px), -50%) rotate(calc(var(--side) * -10deg)) scale(1.15); }
+  100% { transform: translate(calc(-50% + var(--side) * 56px), calc(-50% - 70px)) rotate(calc(var(--side) * 50deg)); }
+}
+
+@keyframes sfx-spank-hand-fade {
+  0% { opacity: 0; }
+  8%, 92% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 .sfx-handprint {
@@ -6654,41 +6642,6 @@ body.store-picking [data-player] {
   20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(-6deg); }
   35%, 85% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(4deg); }
   100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
-}
-
-/* 🍑 Spanking in 3D (spank3d.js): a see-through full-screen canvas the two 3D people are
-   rendered into, with the players' faces as HTML that follows each head bone. */
-.sfx-3d {
-  position: absolute;
-  inset: 0;
-  transition: opacity 0.5s;
-}
-
-.sfx-3d canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.sfx-3d.sfx-3d-out { opacity: 0; }
-
-.sfx-3d-face {
-  position: absolute;
-  left: 0;
-  top: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
-  will-change: transform;
-}
-
-.sfx-3d-face img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
 }
 
 /* 👑 Crown: a golden halo, the crown floats down and sits there, sparkles all around. */

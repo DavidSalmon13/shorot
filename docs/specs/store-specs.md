@@ -98,16 +98,7 @@ sticker-unlock system rather than adding a parallel one.
 | 💦 **Water Balloon** | 60 | another player | ~4.5s: a wobbly balloon is lobbed in and bursts in a splash ring and droplets; their icon turns blue and shivers, drips and a puddle stay |
 | 🥧 **Pie in the Face** | 90 | another player | ~5s: a pie flies in and smacks flat; a blob of cream with a cherry slowly slides down their icon and drips off |
 | ⚡ **Lightning Strike** | 150 | another player | ~4.5s: a storm cloud, the whole screen flashes, a bolt strikes with "ZAP!" and sparks; their icon is left charred and smoking, with thunder |
-| 🍑 **Spanking** | 300 | another player | ~5.6s, the priciest gag: both players appear as cartoon humans (shirt, jeans, shoes, arms bending at the elbow and legs at the knee) wearing their own face (sticker, else emoji) as the head. The sender's figure (green shirt) pops out of their icon and walks across the screen to the target; the target's figure (white shirt) bends over; three smacks (arm wind-up, "SMACK!", red handprints, footsteps + smack sounds), then the target hops around yelling "OW!" while the sender's figure cheers. If the sender isn't on screen, their figure walks in from the side |
-
-The 🍑 Spanking is rendered with **realistic 3D people**: two copies of a rigged 3D man
-(`public/models/soldier.glb`) drawn live with three.js (served from the pinned `three` npm package at
-`/vendor/three/`) on a see-through canvas, using the model's real walk cycle, with the bend-over, the
-smacks, the hop and the cheer posed on its skeleton, and each player's face (sticker/emoji) in place of
-the 3D head (`public/js/shared/spank3d.js`). three.js + the model (~3 MB) are only downloaded when a
-Spanking is about to play, or when the player owns one; a phone waits up to 3s for them, and plays the
-drawn cartoon version above instead if they're slow, fail, or the phone has no WebGL / prefers reduced
-motion.
+| 🍑 **Spanking** | 300 | another player | ~5.6s, the priciest gag, played with the **players' own photos**: the sender's photo sticker (their emoji, big, if they have none) pops out of their icon and waddles across the screen to the target; the target's photo bends over, away from them; a hand swings down three times ("SMACK!", red handprints, the target's photo jolts, smack sounds + buzz), then the target's photo hops around ("OW!") while the sender's bounces. If the sender isn't on screen they walk in from the side. The gag waits up to 1.5s for both photos to load |
 
 Every gag also shows a caption at the top of the screen ("🥊 Dana punched Yossi!") and plays a
 stronger vibration pattern. Things that fly in come from whichever side of the target has more room.

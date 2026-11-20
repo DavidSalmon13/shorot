@@ -13,7 +13,6 @@
 
 import { sfx, haptic } from '../fx.js';
 import { emojiForName } from './playerEmoji.js';
-import { preloadSpank3d, spank3dReady, playSpank3d } from './spank3d.js';
 
 const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const CONFETTI_COLORS = ['#c6ff4a', '#a78bfa', '#ff6b9a', '#ffd84a', '#4ad9ff', '#ff9f4a'];
@@ -229,42 +228,8 @@ function buildLightning(stage) {
   }
 }
 
-// A stick figure (head, body, two arms, two legs) drawn facing right; --face flips it.
-// A cartoon human (drawn facing right on a 44x72 grid; --face flips it): shirt torso, jeans,
-// sleeved arms bending at the elbow, legs bending at the knee, shoes, hands. The player's
-// face (sticker / emoji) is added as the head by stickFigure(). Joint pivots - hips 22,44,
-// shoulders 22,23, elbows 22,32, knees 22,56 - are what the CSS poses rotate around.
-const LEG = `<rect class="st-pants" x="19.2" y="43" width="6" height="14.5" rx="3" />
-    <g class="st-shin">
-      <rect class="st-pants" x="19.5" y="55" width="5.4" height="13" rx="2.7" />
-      <ellipse class="st-shoe" cx="24" cy="68.8" rx="4.6" ry="2.3" />
-    </g>`;
-const ARM = `<rect class="st-shirt" x="19.8" y="21" width="4.8" height="12" rx="2.4" />
-      <g class="st-fore">
-        <rect class="st-skin" x="20.1" y="31" width="4.2" height="10" rx="2.1" />
-        <circle class="st-skin" cx="22.2" cy="41.6" r="2.5" />
-      </g>`;
-const STICK_SVG = `<svg viewBox="0 0 44 72" aria-hidden="true">
-  <g class="st-leg st-leg-b">${LEG}</g>
-  <g class="st-body">
-    <g class="st-arm st-arm-back">${ARM}</g>
-    <ellipse class="st-pants st-butt" cx="17.2" cy="44" rx="5.8" ry="5.2" />
-    <rect class="st-pants" x="15" y="38" width="14" height="9" rx="3.5" />
-    <rect class="st-skin" x="20" y="15" width="4" height="6" rx="1.5" />
-    <path class="st-shirt" d="M15 21 Q22 18.5 29 21 Q31.5 22 31 25 L29.5 40 Q22 42 14.5 40 L13 25 Q12.5 22 15 21 Z" />
-    <path class="st-shirt-fold" d="M22 22 L22 39" />
-    <circle class="st-head" cx="22" cy="10" r="7" />
-    <g class="st-face"></g>
-    <g class="st-arm st-arm-front">${ARM}</g>
-  </g>
-  <g class="st-leg st-leg-a">${LEG}</g>
-</svg>`;
-
-const FIG_W = 56; // rendered size of a figure (the SVG is drawn on a 44x72 grid)
-const FIG_H = 92;
-
 /**
- * A player's face as shown on their icon: their sticker image, else their emoji. Looks at
+ * A player's look as shown on their icon: their photo sticker, else their emoji. Looks at
  * every rendered copy of their icon (a hidden lobby roster still has it), falling back to
  * the name's default emoji.
  */
@@ -279,42 +244,6 @@ function faceOf(name) {
   return { emoji: emojiForName(name) };
 }
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
-
-/** A stick figure wearing `name`'s face as its head, facing right unless face is -1. */
-function stickFigure(stage, className, face, name) {
-  const fig = document.createElement('span');
-  fig.className = `sfx-stick ${className}`;
-  fig.style.setProperty('--face', face);
-  fig.innerHTML = `<span class="st-inner">${STICK_SVG}</span>`;
-  // The face sits inside the body group, so it tilts with the figure (bending over, etc.).
-  // Drawn bigger than the stick head (r=7) so it reads at a glance; the outline circle hides.
-  const holder = fig.querySelector('.st-face');
-  const look = faceOf(name);
-  let faceEl;
-  if (look.src) {
-    faceEl = document.createElementNS(SVG_NS, 'image');
-    faceEl.setAttribute('href', look.src);
-    faceEl.setAttribute('x', '5');
-    faceEl.setAttribute('y', '-8');
-    faceEl.setAttribute('width', '34');
-    faceEl.setAttribute('height', '34');
-    faceEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-  } else {
-    faceEl = document.createElementNS(SVG_NS, 'text');
-    faceEl.setAttribute('x', '22');
-    faceEl.setAttribute('y', '9');
-    faceEl.setAttribute('font-size', '23');
-    faceEl.setAttribute('text-anchor', 'middle');
-    faceEl.setAttribute('dominant-baseline', 'central');
-    faceEl.textContent = look.emoji;
-  }
-  holder.appendChild(faceEl);
-  fig.classList.add('st-has-face');
-  stage.appendChild(fig);
-  return fig;
-}
-
 /** Where a player's icon is on screen (its center), or null if they aren't shown. */
 function centerOf(name) {
   const a = findAnchor(name);
@@ -323,93 +252,114 @@ function centerOf(name) {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
+const PUPPET_H = 128; // how tall a player's photo stands, in px
+
 /**
- * 🍑 Spanking: the sender's figure walks from their icon to the target, whose own figure
- * bends over; three smacks, then the target hops around while the sender cheers. Positions
- * are stage-relative (the stage sits on the target's icon); the walk is a Web Animation.
+ * A player as a standing cut-out: their own photo sticker (or a big emoji), with a shadow
+ * at their feet. Positioned by its feet (bottom center) via the outer element's transform;
+ * poses (pp-walk, pp-bent, ...) animate the inner body around the feet.
+ */
+function puppet(stage, className, name) {
+  const look = faceOf(name);
+  const el = document.createElement('span');
+  el.className = `sfx-puppet ${className}`;
+  el.innerHTML = '<span class="pp-shadow"></span><span class="pp-anchor"><span class="pp-body"></span></span>';
+  const body = el.querySelector('.pp-body');
+  if (look.src) {
+    const img = document.createElement('img');
+    img.src = look.src;
+    img.alt = '';
+    body.appendChild(img);
+  } else {
+    body.classList.add('pp-emoji');
+    body.textContent = look.emoji;
+  }
+  stage.appendChild(el);
+  return el;
+}
+
+/**
+ * 🍑 Spanking with the players' own photos: the sender's photo waddles over from their icon
+ * to the target, whose photo bends over; a hand swings down three times (SMACK!), then the
+ * target hops around while the sender bounces. Stage-relative positions (the stage sits on
+ * the target's icon); the walk is a Web Animation, poses are CSS classes on a timeline.
  */
 function buildSpank(stage, { fromName, targetName }) {
   const vw = window.innerWidth;
-  const target = centerOf(targetName) || { x: vw / 2, y: window.innerHeight * 0.45 };
+  const vh = window.innerHeight;
+  const target = centerOf(targetName) || { x: vw / 2, y: vh * 0.45 };
   const from = fromName !== targetName ? centerOf(fromName) : null;
-  // Which side of the target the spanker ends up on: the side with room, else the side
-  // they're walking in from. Both figures then face the same way (target's back to them).
+  // The sender ends up on the side with room, else the side they walk in from.
   let side;
-  if (target.x < 90) side = 1;
-  else if (target.x > vw - 90) side = -1;
+  if (target.x < 110) side = 1;
+  else if (target.x > vw - 110) side = -1;
   else side = from && from.x < target.x ? -1 : 1;
-  const face = -side;
-  const FOOT_Y = 18; // feet a little below the icon's center, so the figure stands over it
-  const end = { x: side * 44, y: FOOT_Y };
-  let start = from ? { x: from.x - target.x, y: from.y - target.y + FOOT_Y } : { x: side * 160, y: FOOT_Y };
-  if (Math.hypot(start.x - end.x, start.y - end.y) < 50) start = { x: side * 150, y: FOOT_Y };
-  // Keep the walker's start on screen.
-  start.x = Math.max(FIG_W / 2 - target.x, Math.min(vw - FIG_W / 2 - target.x, start.x));
 
-  // Realistic 3D people when three.js + the model are loaded (playStoreFx waits for them);
-  // otherwise, or if WebGL fails, the drawn figures below.
-  if (spank3dReady() && !reducedMotion) {
-    try {
-      // Feet a bit below the icon (the 3D people are taller), kept fully on screen: the
-      // figures are ~45px either side of their feet and ~135px tall.
-      const vh = window.innerHeight;
-      const onX = (x) => Math.max(48, Math.min(vw - 48, x));
-      const onY = (y) => Math.max(150, Math.min(vh - 8, y));
-      const victimAt = { x: onX(target.x), y: onY(target.y + 34) };
-      const geo = {
-        face,
-        start: { x: onX(target.x + start.x), y: onY(target.y + start.y - FOOT_Y + 34) },
-        end: { x: victimAt.x + side * 50, y: victimAt.y },
-        victim: victimAt,
-      };
-      const faces = { walker: faceOf(fromName || targetName), victim: faceOf(targetName) };
-      const cleanup = playSpank3d(stage.parentElement, geo, faces, GAGS.spank.ms);
-      setTimeout(cleanup, GAGS.spank.ms);
-      return;
-    } catch (err) {
-      console.warn('3D Spanking failed, using the drawn version:', err);
-    }
-  }
+  // Feet a little below the icon, everything kept on screen.
+  const onX = (x) => Math.max(62, Math.min(vw - 62, x));
+  const onY = (y) => Math.max(PUPPET_H + 30, Math.min(vh - 10, y));
+  // The target bends away from the sender, so leave room on that side for the lean.
+  const lean = 70;
+  const victimX = Math.max(62 + (side === 1 ? lean : 0), Math.min(vw - 62 - (side === -1 ? lean : 0), target.x));
+  const victimAt = { x: victimX, y: onY(target.y + 40) };
+  const endAbs = { x: Math.max(40, Math.min(vw - 40, victimAt.x + side * 80)), y: victimAt.y };
+  let startAbs = from ? { x: onX(from.x), y: onY(from.y + 40) } : { x: onX(victimAt.x + side * 220), y: victimAt.y };
+  if (Math.hypot(startAbs.x - endAbs.x, startAbs.y - endAbs.y) < 60) startAbs = { x: onX(victimAt.x + side * 200), y: victimAt.y };
+  const rel = (p) => ({ x: p.x - target.x, y: p.y - target.y });
+  const vic = rel(victimAt);
+  const end = rel(endAbs);
+  const start = rel(startAbs);
+  const at = (p) => `translate(${p.x}px, ${p.y}px)`;
 
-  const victim = stickFigure(stage, 'st-victim', face, targetName);
-  victim.style.transform = `translate(${-FIG_W / 2}px, ${FOOT_Y - FIG_H}px)`;
-  const walker = stickFigure(stage, 'st-walker', face, fromName || targetName);
-  const at = (p) => `translate(${p.x - FIG_W / 2}px, ${p.y - FIG_H}px)`;
+  const victim = puppet(stage, 'pp-victim', targetName);
+  victim.style.transform = at(vic);
+  victim.style.setProperty('--bend', `${-side * 38}deg`); // leans away from the sender
+  victim.style.setProperty('--side', side);
+  const walker = puppet(stage, 'pp-walker', fromName || targetName);
   walker.style.transform = at(start);
+  walker.style.setProperty('--lean', `${-side * 12}deg`); // leans in toward the target
+  walker.style.setProperty('--side', side);
+
+  // The spanking hand, swinging from the sender's side down onto the target's backside.
+  const butt = { x: vic.x + side * 26, y: vic.y - PUPPET_H * 0.3 };
+  const hand = part(stage, 'sfx-spank-hand', '✋');
+  hand.style.setProperty('--hx', `${butt.x}px`);
+  hand.style.setProperty('--hy', `${butt.y}px`);
+  hand.style.setProperty('--side', side);
 
   const later = (ms, fn) => setTimeout(() => stage.isConnected && fn(), ms);
   later(300, () => {
-    walker.classList.add('st-walking');
+    walker.classList.add('pp-walk');
     if (walker.animate) {
       walker.animate([{ transform: at(start) }, { transform: at(end) }], { duration: 2200, easing: 'ease-in-out', fill: 'forwards' });
     } else {
       walker.style.transform = at(end);
     }
   });
-  later(2100, () => victim.classList.add('st-bent'));
+  later(2050, () => victim.classList.add('pp-bent'));
   later(2500, () => {
-    walker.classList.remove('st-walking');
-    walker.classList.add('st-spanking');
-    victim.classList.add('st-spanked');
+    walker.classList.remove('pp-walk');
+    walker.classList.add('pp-swing');
+    victim.classList.add('pp-spanked');
+    hand.classList.add('sfx-spank-hand-on');
   });
   later(4050, () => {
-    walker.classList.remove('st-spanking');
-    walker.classList.add('st-cheer');
-    victim.classList.remove('st-spanked', 'st-bent');
-    victim.classList.add('st-ow');
+    walker.classList.remove('pp-swing');
+    walker.classList.add('pp-cheer');
+    victim.classList.remove('pp-spanked', 'pp-bent');
+    victim.classList.add('pp-ow');
   });
   later(5000, () => {
-    walker.classList.add('st-out');
-    victim.classList.add('st-out');
+    walker.classList.add('pp-out');
+    victim.classList.add('pp-out');
   });
 
-  // Each smack lands 425ms into a 500ms swing: a SMACK! burst and a handprint on the butt.
-  const butt = { x: -12 * face, y: FOOT_Y - 38 };
+  // Each smack lands 425ms into a 500ms swing: SMACK! and a red handprint on the backside.
   [2925, 3425, 3925].forEach((t, i) => {
-    part(stage, 'sfx-handprint', '🖐️', { left: `${butt.x + (i - 1) * 6 * face}px`, top: `${butt.y + (i - 1) * 4}px`, animationDelay: `${t}ms` });
-    part(stage, 'sfx-smack', 'SMACK!', { left: `calc(${butt.x - face * 30}px + var(--nudge))`, top: `${butt.y - 46 - i * 6}px`, animationDelay: `${t}ms` });
+    part(stage, 'sfx-handprint', '🖐️', { left: `${butt.x + (i - 1) * 6 * side}px`, top: `${butt.y + (i - 1) * 5}px`, animationDelay: `${t}ms` });
+    part(stage, 'sfx-smack', 'SMACK!', { left: `calc(${butt.x + side * 34}px + var(--nudge))`, top: `${butt.y - 70 - i * 8}px`, animationDelay: `${t}ms` });
   });
-  part(stage, 'sfx-ow', 'OW!', { left: `calc(${face * 6}px + var(--nudge))`, top: `${FOOT_Y - FIG_H - 22}px` });
+  part(stage, 'sfx-ow', 'OW!', { left: `calc(${vic.x - side * 10}px + var(--nudge))`, top: `${vic.y - PUPPET_H - 20}px` });
 }
 
 /**
@@ -482,15 +432,18 @@ export function playStoreFx(layer, action) {
 }
 
 /**
- * Anything a gag needs loaded before it starts. The 3D Spanking waits (up to 3s) for
- * three.js + its model the first time; if they're slow or fail it plays the drawn version.
+ * Anything a gag needs loaded before it starts: the Spanking shows both players' photos, so
+ * it waits (up to 1.5s) for them to load and doesn't start with blank bodies.
  */
 function prepare(action) {
-  if (action.itemId !== 'spank' || reducedMotion || spank3dReady()) return Promise.resolve();
-  return Promise.race([
-    preloadSpank3d().catch(() => {}),
-    new Promise((resolve) => setTimeout(resolve, 3000)),
-  ]);
+  if (action.itemId !== 'spank') return Promise.resolve();
+  const srcs = [action.fromName, action.targetName].filter(Boolean).map((n) => faceOf(n).src).filter(Boolean);
+  const loads = srcs.map((src) => new Promise((resolve) => {
+    const img = new Image();
+    img.onload = img.onerror = resolve;
+    img.src = src;
+  }));
+  return Promise.race([Promise.all(loads), new Promise((resolve) => setTimeout(resolve, 1500))]);
 }
 
 /**

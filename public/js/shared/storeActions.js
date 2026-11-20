@@ -13,7 +13,6 @@
  */
 
 import { playStoreFx } from './storeFx.js';
-import { preloadSpank3d } from './spank3d.js';
 
 const row = document.getElementById('store-action-row');
 const layer = document.getElementById('store-fx-layer');
@@ -48,8 +47,6 @@ async function refresh() {
     catalog.clear();
     charges.clear();
   }
-  // Owning a Spanking: fetch its 3D people now, so the first one plays without a wait.
-  if (charges.has('spank')) preloadSpank3d().catch(() => {});
   renderTray();
 }
 
