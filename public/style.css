@@ -111,12 +111,12 @@ body::before {
   filter: drop-shadow(0 4px 6px rgba(20, 8, 2, 0.45));
 }
 
-/* Token balance under the logo, on every screen (public/js/shared/tokens.js). */
+/* Token balance at the header's right edge, under its buttons, on every screen
+   (public/js/shared/tokens.js). Kept off-centre so it doesn't cover the screen's content. */
 .token-pill {
   position: absolute;
-  left: 50%;
+  right: 1rem;
   bottom: -0.55rem;
-  transform: translateX(-50%);
   z-index: 5;
   display: inline-flex;
   align-items: center;
@@ -153,9 +153,9 @@ body::before {
 }
 
 @keyframes token-pill-pop {
-  0% { transform: translateX(-50%) scale(1); }
-  40% { transform: translateX(-50%) scale(1.18); }
-  100% { transform: translateX(-50%) scale(1); }
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
 }
 
 .conn-status {
