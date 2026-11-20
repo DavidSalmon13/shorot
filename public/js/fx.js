@@ -1,6 +1,15 @@
 /**
  * Shared feedback layer: synthesized sound effects, haptics, and an
  * animated scoreboard renderer used by every game screen.
+ *
+ * All audio is synthesized live with the Web Audio API - no asset files, in
+ * keeping with the app's zero-build static-serving design. Every voice routes
+ * through one master bus (a limiter + master gain) so layered cues glue
+ * together and never clip harshly. The building blocks are `voice()` (a tonal
+ * oscillator with an ADSR envelope, optional pitch glide, detuned fattening and
+ * a filter) and `noiseBurst()` (a filtered white-noise transient - the "ticks"
+ * and "swishes" that make UI taps feel physical). `sfx.*` composes these into
+ * named cues; keep the method names stable since every game imports them.
  */
 
 const MUTE_KEY = 'shorot-muted';
@@ -8,6 +17,25 @@ const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-re
 
 let muted = localStorage.getItem(MUTE_KEY) === '1';
 let audioCtx = null;
+let master = null; // { input, gain } - the shared limiter bus every voice connects to
+let noiseBuffer = null;
+
+const MASTER_GAIN = 0.85;
+
+function buildMaster(ctx) {
+  // A gentle limiter so stacked voices (chords, fanfares) stay punchy without clipping.
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -10;
+  limiter.knee.value = 24;
+  limiter.ratio.value = 12;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.14;
+  const gain = ctx.createGain();
+  gain.gain.value = MASTER_GAIN;
+  limiter.connect(gain);
+  gain.connect(ctx.destination);
+  return { input: limiter, gain };
+}
 
 function getAudioCtx() {
   const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -18,9 +46,21 @@ function getAudioCtx() {
     } catch (e) {
       audioCtx = new Ctx();
     }
+    master = buildMaster(audioCtx);
   }
   if (audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
   return audioCtx;
+}
+
+// One second of white noise, reused for every transient (taps, swishes, impacts).
+function getNoiseBuffer(ctx) {
+  if (noiseBuffer) return noiseBuffer;
+  const len = Math.floor(ctx.sampleRate * 1);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  noiseBuffer = buf;
+  return buf;
 }
 
 // Browsers block audio until a user gesture, and phones suspend the context again after
@@ -33,24 +73,66 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && audioCtx) getAudioCtx();
 });
 
-function tone(freq, duration, { type = 'sine', gain = 0.12, delay = 0 } = {}) {
+/**
+ * One tonal voice: an oscillator (optionally fattened with a detuned twin) shaped by an
+ * attack / hold / exponential-decay envelope, with an optional pitch glide and lowpass
+ * filter whose cutoff can sweep. Everything is relative to `delay` seconds from now.
+ */
+function voice({
+  freq,
+  freqEnd = null,
+  type = 'sine',
+  dur = 0.2,
+  attack = 0.006,
+  hold = 0,
+  peak = 0.2,
+  delay = 0,
+  fat = 0, // detune in cents for a second layered oscillator (0 = single osc)
+  glide = 'exp', // 'exp' | 'lin'
+  cutoff = null, // lowpass cutoff in Hz (null = no filter)
+  cutoffEnd = null, // sweep the cutoff to this value over `dur`
+} = {}) {
   if (muted) return;
   const ctx = getAudioCtx();
-  // A suspended context queues the sound and plays it whenever it resumes, which is the
-  // late "delayed" tap. Better to drop it than play it out of sync with the touch.
-  if (!ctx || ctx.state !== 'running') return;
-  const osc = ctx.createOscillator();
+  // A suspended context queues the sound and plays it whenever it resumes, which lands as a
+  // late/out-of-sync blip. Better to drop it than play it detached from the gesture.
+  if (!ctx || ctx.state !== 'running' || !master) return;
+
+  const t0 = ctx.currentTime + delay;
   const g = ctx.createGain();
-  osc.type = type;
-  osc.frequency.value = freq;
-  const start = ctx.currentTime + delay;
-  g.gain.setValueAtTime(0, start);
-  g.gain.linearRampToValueAtTime(gain, start + 0.015);
-  g.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  osc.connect(g);
-  g.connect(ctx.destination);
-  osc.start(start);
-  osc.stop(start + duration + 0.02);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t0 + attack);
+  if (hold) g.gain.setValueAtTime(Math.max(0.0002, peak), t0 + attack + hold);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+  let out = g;
+  if (cutoff) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.Q.value = 0.8;
+    filter.frequency.setValueAtTime(cutoff, t0);
+    if (cutoffEnd) filter.frequency.exponentialRampToValueAtTime(Math.max(40, cutoffEnd), t0 + dur);
+    g.connect(filter);
+    filter.connect(master.input);
+    out = filter;
+  } else {
+    g.connect(master.input);
+  }
+
+  const detunes = fat ? [-fat, fat] : [0];
+  detunes.forEach((d) => {
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    if (freqEnd) {
+      if (glide === 'exp') osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqEnd), t0 + dur);
+      else osc.frequency.linearRampToValueAtTime(freqEnd, t0 + dur);
+    }
+    if (d) osc.detune.setValueAtTime(d, t0);
+    osc.connect(g);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.03);
+  });
 }
 
 // A burst of filtered white noise - thuds, splats and booms for the Store gags.
@@ -73,7 +155,7 @@ function noise(duration, { gain = 0.2, delay = 0, freq = 1200, type = 'lowpass' 
   g.gain.exponentialRampToValueAtTime(0.0001, start + duration);
   src.connect(filter);
   filter.connect(g);
-  g.connect(ctx.destination);
+  g.connect(master ? master.input : ctx.destination);
   src.start(start);
   src.stop(start + duration + 0.02);
 }
@@ -94,51 +176,163 @@ function slide(from, to, duration, { type = 'sawtooth', gain = 0.08, delay = 0 }
   g.gain.setValueAtTime(gain, start + duration * 0.8);
   g.gain.exponentialRampToValueAtTime(0.0001, start + duration);
   osc.connect(g);
-  g.connect(ctx.destination);
+  g.connect(master ? master.input : ctx.destination);
   osc.start(start);
   osc.stop(start + duration + 0.02);
 }
 
+// Back-compat single beep used by the Store gag cues below: a thin wrapper over voice() so
+// they keep working after the engine rewrite, now routed through the master limiter bus.
+function tone(freq, duration, { type = 'sine', gain = 0.12, delay = 0 } = {}) {
+  voice({ freq, type, dur: duration, peak: gain, delay, attack: 0.012 });
+}
+
+/** A short filtered white-noise transient - the physical "tick"/"swish"/"impact" layer. */
+function noiseBurst({ dur = 0.06, peak = 0.15, delay = 0, hp = 0, lp = 9000, q = 0.7, sweepLp = null } = {}) {
+  if (muted) return;
+  const ctx = getAudioCtx();
+  if (!ctx || ctx.state !== 'running' || !master) return;
+
+  const t0 = ctx.currentTime + delay;
+  const src = ctx.createBufferSource();
+  src.buffer = getNoiseBuffer(ctx);
+  // Start at a random offset so repeated taps don't sound like an identical sample.
+  const offset = Math.random() * 0.9;
+
+  let node = src;
+  if (hp) {
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = hp;
+    node.connect(f);
+    node = f;
+  }
+  const lpF = ctx.createBiquadFilter();
+  lpF.type = 'lowpass';
+  lpF.Q.value = q;
+  lpF.frequency.setValueAtTime(lp, t0);
+  if (sweepLp) lpF.frequency.exponentialRampToValueAtTime(Math.max(80, sweepLp), t0 + dur);
+  node.connect(lpF);
+
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(peak, t0 + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  lpF.connect(g);
+  g.connect(master.input);
+
+  src.start(t0, offset);
+  src.stop(t0 + dur + 0.03);
+}
+
+// Musical note frequencies (equal temperament), for readable cue definitions.
+const N = {
+  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.0, A4: 440.0, B4: 493.88,
+  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.0, B5: 987.77,
+  C6: 1046.5, D6: 1174.66, E6: 1318.51, G6: 1567.98,
+};
+
 export const sfx = {
+  // Fires on every button tap, so it stays quiet and crisp: a filtered noise tick with a
+  // tiny pitched blip underneath, like a soft mechanical key.
   click() {
-    tone(520, 0.06, { type: 'square', gain: 0.05 });
+    noiseBurst({ dur: 0.028, peak: 0.07, hp: 1400, lp: 7000 });
+    voice({ freq: 880, freqEnd: 560, type: 'sine', dur: 0.05, peak: 0.045 });
+  },
+  // A rounder, more satisfying "pick this" pop (selection, toggles).
+  pop() {
+    noiseBurst({ dur: 0.03, peak: 0.06, hp: 900, lp: 6000 });
+    voice({ freq: 420, freqEnd: 900, type: 'sine', dur: 0.09, peak: 0.14 });
   },
   scoreUp() {
-    tone(660, 0.12, { type: 'triangle' });
-    tone(880, 0.16, { type: 'triangle', delay: 0.07 });
+    voice({ freq: N.E5, type: 'triangle', dur: 0.14, peak: 0.16, fat: 6 });
+    voice({ freq: N.A5, type: 'triangle', dur: 0.18, peak: 0.14, delay: 0.08, fat: 6 });
+    voice({ freq: N.E6, type: 'sine', dur: 0.14, peak: 0.05, delay: 0.08 });
   },
   scoreDown() {
-    tone(220, 0.18, { type: 'sawtooth', gain: 0.08 });
+    voice({ freq: 300, freqEnd: 150, type: 'sawtooth', dur: 0.22, peak: 0.1, cutoff: 1600, cutoffEnd: 400 });
   },
+  // A bright, upward major run - generic "something good happened / you won".
   win() {
-    [523, 659, 784, 1046].forEach((freq, i) => tone(freq, 0.18, { type: 'triangle', delay: i * 0.09 }));
+    [N.C5, N.E5, N.G5, N.C6].forEach((freq, i) =>
+      voice({ freq, type: 'triangle', dur: 0.26, peak: 0.16, delay: i * 0.08, fat: 5 })
+    );
+    voice({ freq: N.G6, type: 'sine', dur: 0.4, peak: 0.05, delay: 0.26 });
   },
   join() {
-    tone(440, 0.08);
-    tone(660, 0.1, { delay: 0.06 });
+    voice({ freq: N.A4, type: 'triangle', dur: 0.1, peak: 0.13, fat: 4 });
+    voice({ freq: N.E5, type: 'triangle', dur: 0.14, peak: 0.12, delay: 0.07, fat: 4 });
   },
   error() {
-    tone(180, 0.15, { type: 'sawtooth', gain: 0.08 });
+    voice({ freq: 200, freqEnd: 150, type: 'sawtooth', dur: 0.18, peak: 0.09, cutoff: 1200, cutoffEnd: 500 });
   },
-  // Countdown beat - `step` counts down (3, 2, 1) and the pitch climbs as it does.
+  // Countdown beat - `step` counts down (3, 2, 1); pitch climbs and the final beat is fuller.
   tick(step = 1) {
-    const freq = 440 + (4 - Math.max(1, Math.min(3, step))) * 110;
-    tone(freq, 0.09, { type: 'square', gain: 0.06 });
-    tone(freq / 2, 0.14, { type: 'triangle', gain: 0.1 });
+    const s = Math.max(1, Math.min(3, step));
+    const freq = 440 + (4 - s) * 110;
+    const last = s === 1;
+    voice({ freq, type: 'square', dur: last ? 0.14 : 0.09, peak: last ? 0.1 : 0.07, cutoff: 2600 });
+    voice({ freq: freq / 2, type: 'triangle', dur: 0.16, peak: 0.09 });
+    noiseBurst({ dur: 0.02, peak: 0.04, hp: 2000 });
   },
+  // A light card/tile flip: a noise swish with a quick upward chirp.
   flip() {
-    tone(1200, 0.035, { type: 'triangle', gain: 0.05 });
-    tone(700, 0.05, { type: 'triangle', gain: 0.05, delay: 0.025 });
+    noiseBurst({ dur: 0.05, peak: 0.08, hp: 1200, lp: 8000, sweepLp: 2500 });
+    voice({ freq: 700, freqEnd: 1200, type: 'triangle', dur: 0.05, peak: 0.05 });
+  },
+  // A woodier reveal than `flip`, for turning over a board tile / card face.
+  reveal() {
+    noiseBurst({ dur: 0.045, peak: 0.07, hp: 700, lp: 5000 });
+    voice({ freq: 360, freqEnd: 240, type: 'triangle', dur: 0.12, peak: 0.12, cutoff: 2200 });
+  },
+  // A dealing swish, for cards flying out.
+  deal() {
+    noiseBurst({ dur: 0.1, peak: 0.1, hp: 2000, lp: 9000, sweepLp: 1200 });
+  },
+  // Happy confirmation: a short ascending major triad bell (right answer, own-team card).
+  correct() {
+    voice({ freq: N.C5, type: 'triangle', dur: 0.12, peak: 0.15, fat: 5 });
+    voice({ freq: N.E5, type: 'triangle', dur: 0.14, peak: 0.14, delay: 0.06, fat: 5 });
+    voice({ freq: N.G5, type: 'sine', dur: 0.22, peak: 0.1, delay: 0.12 });
+  },
+  // Soft negative: two descending notes, rounded by a lowpass so it stings without being harsh.
+  wrong() {
+    voice({ freq: N.F4, type: 'sawtooth', dur: 0.16, peak: 0.1, cutoff: 1500, cutoffEnd: 700 });
+    voice({ freq: N.C4, type: 'sawtooth', dur: 0.22, peak: 0.1, delay: 0.12, cutoff: 1300, cutoffEnd: 500 });
+  },
+  // A dramatic doom hit - the assassin, a fatal mistake.
+  assassin() {
+    voice({ freq: 160, freqEnd: 55, type: 'sawtooth', dur: 0.7, peak: 0.16, cutoff: 900, cutoffEnd: 120 });
+    voice({ freq: 110, freqEnd: 48, type: 'square', dur: 0.7, peak: 0.08 });
+    noiseBurst({ dur: 0.35, peak: 0.14, lp: 1800, sweepLp: 200 });
+  },
+  // Gentle two-note chime: it's your turn / you're up.
+  turn() {
+    voice({ freq: N.G5, type: 'sine', dur: 0.16, peak: 0.12, fat: 4 });
+    voice({ freq: N.C6, type: 'sine', dur: 0.24, peak: 0.12, delay: 0.1, fat: 4 });
+  },
+  // A descending "you lost" stinger - sad but short, not a harsh buzzer.
+  lose() {
+    voice({ freq: N.E4, freqEnd: N.D4, type: 'sawtooth', dur: 0.26, peak: 0.12, cutoff: 1400, cutoffEnd: 600 });
+    voice({ freq: N.C4, freqEnd: N.B4 / 2, type: 'sawtooth', dur: 0.5, peak: 0.12, delay: 0.22, cutoff: 1200, cutoffEnd: 300 });
+    noiseBurst({ dur: 0.12, peak: 0.05, lp: 1500, delay: 0.22, sweepLp: 300 });
+  },
+  // A classic two-note reward coin.
+  coin() {
+    voice({ freq: N.B5, type: 'square', dur: 0.07, peak: 0.1, cutoff: 3500 });
+    voice({ freq: N.E6, type: 'square', dur: 0.2, peak: 0.1, delay: 0.06, cutoff: 3500 });
   },
   fanfare() {
-    [523, 659, 784].forEach((freq, i) => tone(freq, 0.14, { type: 'triangle', delay: i * 0.08 }));
-    tone(1046, 0.45, { type: 'triangle', gain: 0.14, delay: 0.26 });
-    tone(784, 0.45, { type: 'sine', gain: 0.08, delay: 0.26 });
+    [N.C5, N.E5, N.G5].forEach((freq, i) =>
+      voice({ freq, type: 'triangle', dur: 0.18, peak: 0.15, delay: i * 0.08, fat: 5 })
+    );
+    voice({ freq: N.C6, type: 'triangle', dur: 0.5, peak: 0.15, delay: 0.26, fat: 5 });
+    voice({ freq: N.G5, type: 'sine', dur: 0.5, peak: 0.07, delay: 0.26 });
   },
   buzzer() {
-    tone(150, 0.5, { type: 'sawtooth', gain: 0.1 });
-    tone(155, 0.5, { type: 'square', gain: 0.05 });
-    tone(110, 0.35, { type: 'sawtooth', gain: 0.08, delay: 0.32 });
+    voice({ freq: 150, type: 'sawtooth', dur: 0.5, peak: 0.12, cutoff: 1200 });
+    voice({ freq: 155, type: 'square', dur: 0.5, peak: 0.06, cutoff: 1200 });
+    voice({ freq: 110, type: 'sawtooth', dur: 0.4, peak: 0.1, delay: 0.32, cutoff: 900 });
   },
 
   // ---- Store gags (public/js/shared/storeFx.js) ----

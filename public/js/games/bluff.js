@@ -115,6 +115,7 @@ let bfWheelTarget = null;
 let bfHighlightSeatName = null;
 let bfDealing = false;
 let bfHandledResultKey = null;
+let bfAnnouncedGameover = false; // so the win/lose sting plays once per game-over, not per push
 let bfSequenceTimers = [];
 
 // Host's in-progress pick of called card values - kept across re-renders so a state update
@@ -400,6 +401,11 @@ function runResultSequence(data) {
     bfHighlightSeatName = data.lastResult.loserName;
     bfDealing = false;
     bfTableFelt.classList.remove('bf-dealing');
+
+    // The round's loser is spotlighted: sting it. Hits harder (longer buzz) when it's you.
+    const iLost = data.lastResult.loserName === ctx.getMyName();
+    sfx.lose();
+    haptic(iLost ? [120, 60, 180] : 60);
 
     bfSequenceTimers.push(
       setTimeout(() => {
@@ -1280,6 +1286,18 @@ function applyGameover(data) {
   const champion = ranking[0];
   bfChampion.textContent = champion ? `${champion.name} wins Bluff!` : 'No champion';
 
+  // Announce the result once per game-over (applyState re-runs this on every push/reconnect).
+  if (!bfAnnouncedGameover) {
+    bfAnnouncedGameover = true;
+    if (champion && champion.name === ctx.getMyName()) {
+      sfx.win();
+      haptics.success();
+    } else {
+      sfx.lose();
+      haptics.warn();
+    }
+  }
+
   bfStandings.innerHTML = '';
   ranking.forEach((row, i) => {
     const li = document.createElement('li');
@@ -1299,6 +1317,7 @@ function applyState(data) {
   bfSeatingPanel.classList.toggle('hidden', data.phase !== 'seating');
   bfTablePanel.classList.toggle('hidden', data.phase !== 'playing');
   bfGameoverPanel.classList.toggle('hidden', data.phase !== 'gameover');
+  if (data.phase !== 'gameover') bfAnnouncedGameover = false;
 
   if (data.phase !== 'playing') {
     applyCheck(null);
