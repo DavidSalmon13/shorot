@@ -73,6 +73,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
     if (REVALIDATE_RE.test(filePath)) res.set('Cache-Control', 'no-cache');
   },
 }));
+require('./server/bodies').registerBodiesRoutes(app, express);
 stats.registerStatsRoutes(app);
 accounts.registerAccountRoutes(app);
 

@@ -15,6 +15,7 @@ const express = require('express');
 const { OAuth2Client } = require('google-auth-library');
 const db = require('./db');
 const betting = require('./betting');
+const bodies = require('./bodies');
 const store = require('./store');
 const { BADGES, publicBadge } = require('./badges');
 const { computeRatings, RECENT_GAMES } = require('./ratings');
@@ -652,6 +653,8 @@ function registerAccountRoutes(app) {
       if (typeof itemId !== 'string') return res.status(400).json({ ok: false, error: 'Invalid item' });
       const result = await store.buyItem(user.id, itemId);
       if (!result.ok) return res.status(400).json(result);
+      // A Spanking shows the buyer's realistic body: start drawing it now (cached per sticker).
+      if (itemId === 'spank') bodies.ensureBodies(user.sticker);
       const [inventory, balance] = await Promise.all([store.getInventory(user.id), betting.getBalance(user.id)]);
       res.json({ ok: true, inventory, balance });
     } catch (err) {

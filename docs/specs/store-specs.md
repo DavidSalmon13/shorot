@@ -100,6 +100,18 @@ sticker-unlock system rather than adding a parallel one.
 | ⚡ **Lightning Strike** | 150 | another player | ~4.5s: a storm cloud, the whole screen flashes, a bolt strikes with "ZAP!" and sparks; their icon is left charred and smoking, with thunder |
 | 🍑 **Spanking** | 300 | another player | ~5.6s, the priciest gag, played with the **players' own photos**: the sender's photo sticker (their emoji, big, if they have none) pops out of their icon and waddles across the screen to the target; the target's photo bends over, away from them; a hand swings down three times ("SMACK!", red handprints, the target's photo jolts, smack sounds + buzz), then the target's photo hops around ("OW!") while the sender's bounces. If the sender isn't on screen they walk in from the side. The gag waits up to 1.5s for both photos to load |
 
+**Realistic bodies for the 🍑 Spanking** (`server/bodies.js`): for each player photo sticker, the
+OpenAI image API draws that same person as a photorealistic full body in 8 side-view poses (stand,
+two walking steps, bent over, arm raised, arm swung through, cheering, hopping while rubbing their
+backside). The standing pose is made from the sticker; the other 7 from the sticker + that standing
+figure, so face, outfit and build match. Each set is generated **once, in the background**, cached on
+the volume (`DATA_DIR/bodies/<sticker>/`, served at `/bodies/`) and reused by every later Spanking.
+A Spanking sends the cached sets for both players; a player whose set isn't ready yet (or who has no
+photo sticker, or a GIF one) plays as their photo as above, and their set starts generating then.
+Buying a Spanking also starts the buyer's set. With bodies, the poses are swapped on the same
+timeline (walk frames, bend over, wind-up / swing-through on each smack, cheer / rub) and the ✋ isn't
+needed. Cost is about 8 image calls per sticker, once; a failed set is retried after an hour.
+
 Every gag also shows a caption at the top of the screen ("🥊 Dana punched Yossi!") and plays a
 stronger vibration pattern. Things that fly in come from whichever side of the target has more room.
 Code: `public/js/shared/storeFx.js` (parts + timings), sounds in `public/js/fx.js`, styles in

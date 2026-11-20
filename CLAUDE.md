@@ -32,7 +32,10 @@ doesn't cover.
 
 Requires Node >=18. Environment variables (see `.env.example`):
 - `OPENAI_API_KEY`, `OPENAI_MODEL` (default `gpt-4o-mini`) — used for
-  Imposter word/hint generation and Codenames board generation.
+  Imposter word/hint generation and Codenames board generation. The key also powers the
+  🍑 Spanking gag's realistic bodies (`server/bodies.js`, image model `OPENAI_IMAGE_MODEL`,
+  default `gpt-image-1`, quality `BODIES_QUALITY`, default `medium`): 8 poses per player
+  sticker, generated once in the background and cached in `DATA_DIR/bodies`.
 - `DATA_DIR` — where `rooms.json` (room state snapshot), uploaded
   background images, and player-uploaded stickers (`DATA_DIR/stickers`) are persisted; point this at a mounted volume in
   production (e.g. Railway) so state survives redeploys.

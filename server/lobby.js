@@ -12,6 +12,7 @@ const {
 const { saveRoomsToDisk } = require('./persistence');
 const { getGame, clearAllGameState, initGameState } = require('./gameRegistry');
 const { isValidSticker } = require('./stickers');
+const bodies = require('./bodies');
 const { getItem: getStoreItem } = require('./store/catalog');
 const {
   canUseSticker,
@@ -728,7 +729,16 @@ function registerLobbyHandlers(socket) {
     ctx.store.recordAction(room, { actor: actorName, target, selfTarget, retaliating: gate.retaliating });
     logActivity('store', `${actorName} used ${item.name}${selfTarget ? '' : ` on ${target}`}`);
     callback({ ok: true, retaliating: gate.retaliating });
-    roomEmit(roomCode, 'storeAction', { itemId, fromName: actorName, targetName: target, selfTarget });
+    const payload = { itemId, fromName: actorName, targetName: target, selfTarget };
+    if (itemId === 'spank') {
+      // Realistic bodies for the two players, if their stickers have a cached set (else the
+      // clients play the photo version); missing sets start generating for next time.
+      const fromSticker = actor.sticker || null;
+      const targetSticker = (room.players.get(target) || {}).sticker || null;
+      payload.bodies = { from: bodies.bodiesFor(fromSticker), target: bodies.bodiesFor(targetSticker) };
+      bodies.ensureBodies(fromSticker, targetSticker);
+    }
+    roomEmit(roomCode, 'storeAction', payload);
   });
 
   socket.on('resetScoreboard', (callback) => {

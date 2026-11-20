@@ -42,6 +42,12 @@ function isValidSticker(id) {
   return typeof id === 'string' && STICKER_IDS.has(id);
 }
 
+/** Where a valid sticker's image file is on disk (built-in or uploaded), or null. */
+function stickerPath(id) {
+  if (!isValidSticker(id)) return null;
+  return path.join(id.startsWith(CUSTOM_PREFIX) ? CUSTOM_STICKERS_DIR : STICKERS_DIR, id);
+}
+
 /**
  * Saves an uploaded image into the shared bank. Returns { id } or { error }.
  */
@@ -59,4 +65,4 @@ function addCustomSticker(mimeType, buffer) {
   return { id };
 }
 
-module.exports = { CUSTOM_STICKERS_DIR, stickerFiles, isValidSticker, addCustomSticker };
+module.exports = { CUSTOM_STICKERS_DIR, stickerFiles, isValidSticker, addCustomSticker, stickerPath };

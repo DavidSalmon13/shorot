@@ -253,27 +253,43 @@ function centerOf(name) {
 }
 
 const PUPPET_H = 128; // how tall a player's photo stands, in px
+const BODY_H = 168; // how tall a realistic generated body stands, in px
 
 /**
- * A player as a standing cut-out: their own photo sticker (or a big emoji), with a shadow
- * at their feet. Positioned by its feet (bottom center) via the outer element's transform;
- * poses (pp-walk, pp-bent, ...) animate the inner body around the feet.
+ * A player as a standing figure, placed by its feet (bottom center) via the outer element's
+ * transform; poses (pp-walk, pp-bent, ...) animate the inner body around the feet. With
+ * `poses` (realistic body images from server/bodies.js, drawn facing right) it shows those
+ * and `setPose(name)` switches between them; `flip` mirrors it to face left. Without, it's
+ * the player's own photo sticker (or a big emoji).
  */
-function puppet(stage, className, name) {
-  const look = faceOf(name);
+function puppet(stage, className, name, poses, flip) {
   const el = document.createElement('span');
   el.className = `sfx-puppet ${className}`;
   el.innerHTML = '<span class="pp-shadow"></span><span class="pp-anchor"><span class="pp-body"></span></span>';
   const body = el.querySelector('.pp-body');
-  if (look.src) {
-    const img = document.createElement('img');
-    img.src = look.src;
+  let img = null;
+  if (poses) {
+    el.classList.add('pp-real');
+    el.style.setProperty('--flip', flip ? -1 : 1);
+    img = document.createElement('img');
+    img.src = poses.stand;
     img.alt = '';
     body.appendChild(img);
   } else {
-    body.classList.add('pp-emoji');
-    body.textContent = look.emoji;
+    const look = faceOf(name);
+    if (look.src) {
+      img = document.createElement('img');
+      img.src = look.src;
+      img.alt = '';
+      body.appendChild(img);
+    } else {
+      body.classList.add('pp-emoji');
+      body.textContent = look.emoji;
+    }
   }
+  el.setPose = (pose) => {
+    if (poses && img && poses[pose]) img.src = poses[pose];
+  };
   stage.appendChild(el);
   return el;
 }
@@ -284,7 +300,11 @@ function puppet(stage, className, name) {
  * target hops around while the sender bounces. Stage-relative positions (the stage sits on
  * the target's icon); the walk is a Web Animation, poses are CSS classes on a timeline.
  */
-function buildSpank(stage, { fromName, targetName }) {
+function buildSpank(stage, { fromName, targetName, bodies }) {
+  const walkerPoses = (bodies && bodies.from) || null;
+  const victimPoses = (bodies && bodies.target) || null;
+  const victimH = victimPoses ? BODY_H : PUPPET_H;
+  const tallest = walkerPoses || victimPoses ? BODY_H : PUPPET_H;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const target = centerOf(targetName) || { x: vw / 2, y: vh * 0.45 };
@@ -297,12 +317,13 @@ function buildSpank(stage, { fromName, targetName }) {
 
   // Feet a little below the icon, everything kept on screen.
   const onX = (x) => Math.max(62, Math.min(vw - 62, x));
-  const onY = (y) => Math.max(PUPPET_H + 30, Math.min(vh - 10, y));
+  const onY = (y) => Math.max(tallest + 30, Math.min(vh - 10, y));
   // The target bends away from the sender, so leave room on that side for the lean.
   const lean = 70;
   const victimX = Math.max(62 + (side === 1 ? lean : 0), Math.min(vw - 62 - (side === -1 ? lean : 0), target.x));
   const victimAt = { x: victimX, y: onY(target.y + 40) };
-  const endAbs = { x: Math.max(40, Math.min(vw - 40, victimAt.x + side * 80)), y: victimAt.y };
+  const gap = walkerPoses || victimPoses ? 92 : 80;
+  const endAbs = { x: Math.max(40, Math.min(vw - 40, victimAt.x + side * gap)), y: victimAt.y };
   let startAbs = from ? { x: onX(from.x), y: onY(from.y + 40) } : { x: onX(victimAt.x + side * 220), y: victimAt.y };
   if (Math.hypot(startAbs.x - endAbs.x, startAbs.y - endAbs.y) < 60) startAbs = { x: onX(victimAt.x + side * 200), y: victimAt.y };
   const rel = (p) => ({ x: p.x - target.x, y: p.y - target.y });
@@ -311,21 +332,30 @@ function buildSpank(stage, { fromName, targetName }) {
   const start = rel(startAbs);
   const at = (p) => `translate(${p.x}px, ${p.y}px)`;
 
-  const victim = puppet(stage, 'pp-victim', targetName);
+  // Realistic bodies are drawn facing right: both face left when the sender is on the right
+  // (the sender toward the target, the target away from them).
+  const flip = side === 1;
+  const victim = puppet(stage, 'pp-victim', targetName, victimPoses, flip);
   victim.style.transform = at(vic);
   victim.style.setProperty('--bend', `${-side * 38}deg`); // leans away from the sender
   victim.style.setProperty('--side', side);
-  const walker = puppet(stage, 'pp-walker', fromName || targetName);
+  const walker = puppet(stage, 'pp-walker', fromName || targetName, walkerPoses, flip);
   walker.style.transform = at(start);
   walker.style.setProperty('--lean', `${-side * 12}deg`); // leans in toward the target
   walker.style.setProperty('--side', side);
 
-  // The spanking hand, swinging from the sender's side down onto the target's backside.
-  const butt = { x: vic.x + side * 26, y: vic.y - PUPPET_H * 0.3 };
-  const hand = part(stage, 'sfx-spank-hand', '✋');
-  hand.style.setProperty('--hx', `${butt.x}px`);
-  hand.style.setProperty('--hy', `${butt.y}px`);
-  hand.style.setProperty('--side', side);
+  // Where the smacks land: the target's backside (higher up on a bent-over real body).
+  const butt = victimPoses
+    ? { x: vic.x + side * BODY_H * 0.2, y: vic.y - BODY_H * 0.47 }
+    : { x: vic.x + side * 26, y: vic.y - PUPPET_H * 0.3 };
+  // A photo has no arm, so a hand swings in for it; a realistic body swings its own.
+  let hand = null;
+  if (!walkerPoses) {
+    hand = part(stage, 'sfx-spank-hand', '✋');
+    hand.style.setProperty('--hx', `${butt.x}px`);
+    hand.style.setProperty('--hy', `${butt.y}px`);
+    hand.style.setProperty('--side', side);
+  }
 
   const later = (ms, fn) => setTimeout(() => stage.isConnected && fn(), ms);
   later(300, () => {
@@ -336,19 +366,32 @@ function buildSpank(stage, { fromName, targetName }) {
       walker.style.transform = at(end);
     }
   });
-  later(2050, () => victim.classList.add('pp-bent'));
+  later(2050, () => {
+    victim.classList.add('pp-bent');
+    victim.setPose('bent');
+  });
   later(2500, () => {
     walker.classList.remove('pp-walk');
     walker.classList.add('pp-swing');
     victim.classList.add('pp-spanked');
-    hand.classList.add('sfx-spank-hand-on');
+    if (hand) hand.classList.add('sfx-spank-hand-on');
   });
   later(4050, () => {
     walker.classList.remove('pp-swing');
     walker.classList.add('pp-cheer');
+    walker.setPose('cheer');
     victim.classList.remove('pp-spanked', 'pp-bent');
     victim.classList.add('pp-ow');
+    victim.setPose('rub');
   });
+  if (walkerPoses) {
+    // Real walk cycle while crossing, then wind up / swing through on each smack.
+    for (let t = 300, i = 0; t < 2500; t += 240, i++) later(t, () => walker.setPose(i % 2 ? 'walk2' : 'walk1'));
+    later(2500, () => walker.setPose('stand'));
+    // Wind up between smacks; the swung-through pose holds ~225ms after each hit.
+    [2560, 3150, 3650].forEach((t) => later(t, () => walker.setPose('raise')));
+    [2925, 3425, 3925].forEach((t) => later(t, () => walker.setPose('slap')));
+  }
   later(5000, () => {
     walker.classList.add('pp-out');
     victim.classList.add('pp-out');
@@ -359,7 +402,7 @@ function buildSpank(stage, { fromName, targetName }) {
     part(stage, 'sfx-handprint', '🖐️', { left: `${butt.x + (i - 1) * 6 * side}px`, top: `${butt.y + (i - 1) * 5}px`, animationDelay: `${t}ms` });
     part(stage, 'sfx-smack', 'SMACK!', { left: `calc(${butt.x + side * 34}px + var(--nudge))`, top: `${butt.y - 70 - i * 8}px`, animationDelay: `${t}ms` });
   });
-  part(stage, 'sfx-ow', 'OW!', { left: `calc(${vic.x - side * 10}px + var(--nudge))`, top: `${vic.y - PUPPET_H - 20}px` });
+  part(stage, 'sfx-ow', 'OW!', { left: `calc(${vic.x - side * 10}px + var(--nudge))`, top: `${vic.y - victimH - 20}px` });
 }
 
 /**
@@ -432,25 +475,44 @@ export function playStoreFx(layer, action) {
 }
 
 /**
- * Anything a gag needs loaded before it starts: the Spanking shows both players' photos, so
- * it waits (up to 1.5s) for them to load and doesn't start with blank bodies.
+ * Anything a gag needs loaded before it starts: the Spanking shows both players' photos (and
+ * their realistic body poses, when the server has them - server/bodies.js), so it waits up to
+ * 2.5s for those images and doesn't start with blank bodies. A body whose poses didn't all
+ * load in time isn't used this time (usableBodies) - the photo version plays instead.
  */
+const loadedImages = new Set();
+
+function loadImage(src) {
+  if (loadedImages.has(src)) return Promise.resolve();
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      loadedImages.add(src);
+      resolve();
+    };
+    img.onerror = resolve;
+    img.src = src;
+  });
+}
+
 function prepare(action) {
   if (action.itemId !== 'spank') return Promise.resolve();
   const srcs = [action.fromName, action.targetName].filter(Boolean).map((n) => faceOf(n).src).filter(Boolean);
-  const loads = srcs.map((src) => new Promise((resolve) => {
-    const img = new Image();
-    img.onload = img.onerror = resolve;
-    img.src = src;
-  }));
-  return Promise.race([Promise.all(loads), new Promise((resolve) => setTimeout(resolve, 1500))]);
+  for (const set of Object.values(action.bodies || {})) if (set) srcs.push(...Object.values(set));
+  return Promise.race([Promise.all(srcs.map(loadImage)), new Promise((resolve) => setTimeout(resolve, 2500))]);
+}
+
+/** The body sets whose every pose image is loaded; the others become null. */
+function usableBodies(bodies) {
+  const ok = (set) => (set && Object.values(set).every((src) => loadedImages.has(src)) ? set : null);
+  return { from: ok(bodies && bodies.from), target: ok(bodies && bodies.target) };
 }
 
 /**
  * Plays one gag right away and returns how long it lasts. `icon` is the catalog emoji, used
  * as a fallback for an unknown item id.
  */
-function playNow(layer, { itemId, fromName, targetName, icon }) {
+function playNow(layer, { itemId, fromName, targetName, icon, bodies }) {
   const gag = GAGS[itemId];
   const ms = gag ? gag.ms : 2000;
   if (gag) {
@@ -467,7 +529,7 @@ function playNow(layer, { itemId, fromName, targetName, icon }) {
     stage.classList.add('sfx-simple');
     part(stage, 'sfx-simple-glyph', icon || '✨');
   } else {
-    gag.build(stage, { fromName, targetName });
+    gag.build(stage, { fromName, targetName, bodies: usableBodies(bodies) });
   }
 
   const self = !fromName || fromName === targetName;
