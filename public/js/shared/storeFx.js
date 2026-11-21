@@ -423,6 +423,63 @@ function buildSpank(stage, { fromName, targetName, bodies }) {
  * the rest of the timeline is CSS animation delays (public/style.css "Go do the dishes"),
  * the dishes part offset by --t0 (DISHES_T0).
  */
+// Stick-arm geometry for the dishes gag, in px from the photo's feet (on the sink's rim): the
+// shoulders' height, the bone lengths, and where the hands meet the plate (out from the middle, up).
+const ARM = { shoulderUp: 64, upper: 58, fore: 66, hand: 24, handUp: 4 };
+
+/**
+ * Where the sticker's visible pixels start and end (px from its center, left negative) on the
+ * row `up` px above its feet, as drawn by .pp-body (PUPPET_H tall, max 130 wide, bottom-aligned).
+ * Falls back to a typical width for an emoji, an unloaded image or an unreadable one.
+ */
+function stickerEdges(img, up) {
+  const fallback = { left: -40, right: 40 };
+  if (!img || !img.naturalWidth || !img.naturalHeight) return fallback;
+  const cw = Math.round(Math.min(130, (PUPPET_H * img.naturalWidth) / img.naturalHeight));
+  const ch = Math.round((cw * img.naturalHeight) / img.naturalWidth);
+  const y = Math.max(0, Math.min(ch - 1, ch - up));
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = cw;
+    canvas.height = ch;
+    const g = canvas.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0, cw, ch);
+    // A few rows around shoulder height, so a single see-through pixel doesn't decide it.
+    const rows = g.getImageData(0, Math.max(0, y - 3), cw, Math.min(7, ch - Math.max(0, y - 3))).data;
+    let lo = cw;
+    let hi = -1;
+    for (let i = 3; i < rows.length; i += 4) {
+      if (rows[i] < 80) continue;
+      const x = ((i - 3) / 4) % cw;
+      if (x < lo) lo = x;
+      if (x > hi) hi = x;
+    }
+    if (hi < lo) return fallback;
+    return { left: lo - cw / 2, right: hi - cw / 2 };
+  } catch (e) {
+    return fallback; // e.g. a cross-origin image taints the canvas
+  }
+}
+
+/**
+ * Two-bone reach in the right arm's frame (x outward, y down): the upper arm's angle and the
+ * forearm's angle relative to it (degrees, CSS rotate) so a hand `dx`, `dy` from the shoulder is
+ * reached with the elbow bent outward. Out of reach = arm pointing straight at it.
+ */
+function reach(dx, dy, upper, fore) {
+  const d = Math.min(Math.hypot(dx, dy), upper + fore - 1);
+  const toHand = Math.atan2(dy, dx);
+  const bend = Math.acos(Math.max(-1, Math.min(1, (upper * upper + d * d - fore * fore) / (2 * upper * d))));
+  const a1 = toHand - bend; // elbow out to the side
+  const ex = upper * Math.cos(a1);
+  const ey = upper * Math.sin(a1);
+  const hx = d * Math.cos(toHand);
+  const hy = d * Math.sin(toHand);
+  const a2 = Math.atan2(hy - ey, hx - ex) - a1;
+  const deg = (r) => Math.round((r * 180) / Math.PI);
+  return { a1: deg(a1), a2: deg(a2) };
+}
+
 const DISHES_T0 = 3000; // when the sink scene starts, in ms (matches --t0 in style.css)
 const SINK_RIM = 30; // how far the sink's rim is above the scene's feet line, in px
 
@@ -478,16 +535,20 @@ function buildDishes(stage, { fromName, targetName }) {
   const washer = puppet(stage, 'pp-washer', targetName, null, false);
   washer.style.transform = at(onRim);
 
-  // Shoulders sit on the sides of the photo, half way up; its width comes from the (preloaded) image.
-  const img = washer.querySelector('img');
-  let w = 110;
-  if (img && img.naturalWidth && img.naturalHeight) w = Math.min(130, (PUPPET_H * img.naturalWidth) / img.naturalHeight);
+  // Each arm is attached to the sticker's own edge at shoulder height (found from its pixels),
+  // and a two-bone reach (shoulder -> elbow -> hand) bends the elbow outward so the hand lands
+  // on the plate at the rim.
+  const edges = stickerEdges(washer.querySelector('img'), ARM.shoulderUp);
   const rig = document.createElement('span');
   rig.className = 'sfx-dish-rig';
   rig.style.transform = at(onRim);
-  rig.style.setProperty('--sx', `${Math.max(22, w / 2 - 16)}px`);
   rig.innerHTML = [-1, 1]
-    .map((s) => `<span class="dd-arm" style="--s:${s}"><span class="dd-upper"><span class="dd-fore"><span class="dd-hand">${s === 1 ? '<span class="dd-sponge">🧽</span>' : ''}</span></span></span></span>`)
+    .map((s) => {
+      const shoulder = Math.max(14, (s === 1 ? edges.right : -edges.left) - 5);
+      const { a1, a2 } = reach(ARM.hand - shoulder, ARM.shoulderUp - ARM.handUp, ARM.upper, ARM.fore);
+      const vars = `--s:${s};--sx:${shoulder}px;--sy:${-ARM.shoulderUp}px;--u:${ARM.upper}px;--l:${ARM.fore}px;--a1:${a1}deg;--a2:${a2}deg`;
+      return `<span class="dd-arm" style="${vars}"><span class="dd-upper"><span class="dd-fore"><span class="dd-hand">${s === 1 ? '<span class="dd-sponge">🧽</span>' : ''}</span></span></span></span>`;
+    })
     .join('');
   stage.appendChild(rig);
 

@@ -6928,7 +6928,7 @@ body.store-picking [data-player] {
 .dd-arm {
   position: absolute;
   left: calc(var(--s) * var(--sx));
-  top: -52px; /* ~40% up a PUPPET_H photo */
+  top: var(--sy, -64px); /* ARM.shoulderUp in storeFx.js */
   width: 0;
   height: 0;
   transform: scaleX(var(--s));
@@ -6954,14 +6954,14 @@ body.store-picking [data-player] {
 .dd-upper {
   left: 0;
   top: -2px;
-  transform: rotate(50deg);
+  transform: rotate(var(--a1, 50deg));
   animation: dd-grow-upper 0.3s ease-out calc(var(--t0) + 1.3s) both, dd-scrub-upper 0.25s ease-in-out calc(var(--t0) + 1.75s) 12 alternate;
 }
 
 .dd-fore {
   left: calc(100% - 4px);
   top: 0;
-  transform: rotate(105deg);
+  transform: rotate(var(--a2, 105deg));
   animation: dd-grow-fore 0.3s ease-out calc(var(--t0) + 1.5s) both, dd-scrub-fore 0.25s ease-in-out calc(var(--t0) + 1.75s) 12 alternate;
 }
 
@@ -6969,26 +6969,27 @@ body.store-picking [data-player] {
 .dd-arm:first-child .dd-upper { animation-delay: calc(var(--t0) + 1.3s), calc(var(--t0) + 2s); }
 .dd-arm:first-child .dd-fore { animation-delay: calc(var(--t0) + 1.5s), calc(var(--t0) + 2s); }
 
-/* Stick-man arms: a long upper arm out and down to the elbow, a longer forearm back in to the
-   plate, the hand a dot. Lengths/angles put the hands on the plate at the sink's rim. */
+/* Stick-man arms: the upper arm out and down to the elbow, the forearm back in to the plate,
+   the hand a dot. Bone lengths (--u, --l) and rest angles (--a1, --a2, from a two-bone reach)
+   are set per arm by storeFx.js so the hands land on the plate; scrubbing swings around them. */
 @keyframes dd-grow-upper {
   from { width: 0; }
-  to { width: 42px; }
+  to { width: var(--u, 58px); }
 }
 
 @keyframes dd-grow-fore {
   from { width: 0; }
-  to { width: 50px; }
+  to { width: var(--l, 66px); }
 }
 
 @keyframes dd-scrub-upper {
-  from { transform: rotate(43deg); }
-  to { transform: rotate(57deg); }
+  from { transform: rotate(calc(var(--a1, 50deg) - 7deg)); }
+  to { transform: rotate(calc(var(--a1, 50deg) + 7deg)); }
 }
 
 @keyframes dd-scrub-fore {
-  from { transform: rotate(96deg); }
-  to { transform: rotate(118deg); }
+  from { transform: rotate(calc(var(--a2, 105deg) - 12deg)); }
+  to { transform: rotate(calc(var(--a2, 105deg) + 12deg)); }
 }
 
 .dd-hand {
