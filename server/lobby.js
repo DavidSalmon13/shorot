@@ -14,6 +14,7 @@ const { getGame, clearAllGameState, initGameState } = require('./gameRegistry');
 const { isValidSticker } = require('./stickers');
 const bodies = require('./bodies');
 const dishVideos = require('./dishVideos');
+const spankVideos = require('./spankVideos');
 const { getItem: getStoreItem } = require('./store/catalog');
 const {
   canUseSticker,
@@ -738,6 +739,9 @@ function registerLobbyHandlers(socket) {
       const targetSticker = (room.players.get(target) || {}).sticker || null;
       payload.bodies = { from: bodies.bodiesFor(fromSticker), target: bodies.bodiesFor(targetSticker) };
       bodies.ensureBodies(fromSticker, targetSticker);
+      // And the target's AI spanking video (server/spankVideos.js), which replaces the smacks.
+      payload.video = spankVideos.videoFor(targetSticker);
+      spankVideos.ensureVideo(targetSticker);
     } else if (itemId === 'dishes') {
       // The target's realistic AI dishes video, if their sticker has one cached (else the
       // clients play the stick-arms version); a missing one starts generating for next time.

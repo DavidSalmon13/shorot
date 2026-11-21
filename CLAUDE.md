@@ -40,6 +40,9 @@ Requires Node >=18. Environment variables (see `.env.example`):
   model `FAL_VIDEO_MODEL`, default `wan/v2.6/image-to-video`): one ~5s clip per player sticker,
   generated in the background the first time that player is targeted and cached in
   `DATA_DIR/dishvideos`; until then (or with no key) the stick-arms animation plays.
+  The 🍑 Spanking gag gets the same treatment (`server/spankVideos.js`, cached in
+  `DATA_DIR/spankvideos`): the target in boxers, looking back in fear, slapped by a dark figure.
+  Both share `server/gagVideos.js`.
 - `DATA_DIR` — where `rooms.json` (room state snapshot), uploaded
   background images, and player-uploaded stickers (`DATA_DIR/stickers`) are persisted; point this at a mounted volume in
   production (e.g. Railway) so state survives redeploys.

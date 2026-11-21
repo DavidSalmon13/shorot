@@ -412,8 +412,10 @@ export const sfx = {
     });
   },
   // Footsteps across the room, three sharp smacks, then a yelp.
-  spank() {
+  // With an AI video ({ video: true }) the clip brings its own sound, so only the footsteps play.
+  spank({ video = false } = {}) {
     for (let i = 0; i < 9; i++) tone(i % 2 ? 160 : 190, 0.05, { type: 'triangle', gain: 0.07, delay: 0.35 + i * 0.24 });
+    if (video) return;
     [2.925, 3.425, 3.925].forEach((t) => {
       noise(0.09, { gain: 0.7, delay: t, freq: 2500, type: 'highpass' });
       noise(0.12, { gain: 0.35, delay: t, freq: 500 });

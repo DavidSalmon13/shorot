@@ -77,11 +77,13 @@ const GAGS = {
     build: buildPie,
   },
   spank: {
-    ms: 5600,
+    // With the target's AI video (server/spankVideos.js) the sender walks over, then the clip
+    // plays (SPANK_T0 + 5s) instead of the drawn smacks.
+    ms: (a) => (a.video ? SPANK_T0 + 5600 : 5600),
     avatarClass: null,
     caption: (from, to) => `🍑 ${from} spanked ${to}!`,
-    sound: () => sfx.spank(),
-    haptic: [0, 2900, 70, 430, 70, 430, 120],
+    sound: (a) => sfx.spank({ video: !!a.video }),
+    haptic: (a) => (a.video ? [0, 350, 40, 200, 40, 200, 40, 200, 40] : [0, 2900, 70, 430, 70, 430, 120]),
     build: buildSpank,
   },
   dishes: {
@@ -309,7 +311,9 @@ function puppet(stage, className, name, poses, flip) {
  * target hops around while the sender bounces. Stage-relative positions (the stage sits on
  * the target's icon); the walk is a Web Animation, poses are CSS classes on a timeline.
  */
-function buildSpank(stage, { fromName, targetName, bodies }) {
+const SPANK_T0 = 2600; // with an AI video, when the clip pops up, in ms
+
+function buildSpank(stage, { fromName, targetName, bodies, video }) {
   const walkerPoses = (bodies && bodies.from) || null;
   const victimPoses = (bodies && bodies.target) || null;
   const victimH = victimPoses ? BODY_H : PUPPET_H;
@@ -357,6 +361,27 @@ function buildSpank(stage, { fromName, targetName, bodies }) {
   const butt = victimPoses
     ? { x: vic.x + side * BODY_H * 0.2, y: vic.y - BODY_H * 0.47 }
     : { x: vic.x + side * 26, y: vic.y - PUPPET_H * 0.3 };
+
+  const later = (ms, fn) => setTimeout(() => stage.isConnected && fn(), ms);
+  if (video) {
+    // The walk-up, then both puppets vanish and the target's AI clip takes over.
+    later(300, () => {
+      walker.classList.add('pp-walk');
+      if (walker.animate) {
+        walker.animate([{ transform: at(start) }, { transform: at(end) }], { duration: 2200, easing: 'ease-in-out', fill: 'forwards' });
+      } else {
+        walker.style.transform = at(end);
+      }
+    });
+    if (walkerPoses) for (let t = 300, i = 0; t < 2500; t += 240, i++) later(t, () => walker.setPose(i % 2 ? 'walk2' : 'walk1'));
+    later(SPANK_T0 - 300, () => {
+      walker.classList.add('pp-out');
+      victim.classList.add('pp-out');
+    });
+    stage.style.setProperty('--t0', `${SPANK_T0 / 1000}s`);
+    playGagVideo(stage, target, video, later, SPANK_T0);
+    return;
+  }
   // A photo has no arm, so a hand swings in for it; a realistic body swings its own.
   let hand = null;
   if (!walkerPoses) {
@@ -365,8 +390,6 @@ function buildSpank(stage, { fromName, targetName, bodies }) {
     hand.style.setProperty('--hy', `${butt.y}px`);
     hand.style.setProperty('--side', side);
   }
-
-  const later = (ms, fn) => setTimeout(() => stage.isConnected && fn(), ms);
   later(300, () => {
     walker.classList.add('pp-walk');
     if (walker.animate) {
@@ -539,7 +562,7 @@ function buildDishes(stage, { fromName, targetName, video }) {
 
   // --- Act 2: the dishes --------------------------------------------------------------
   if (video) {
-    playDishVideo(stage, target, video, later);
+    playGagVideo(stage, target, video, later, DISHES_T0);
     return;
   }
   part(stage, 'sfx-dish-spot', '', { left: `${f.x}px`, top: `${f.y - 95}px` });
@@ -600,11 +623,12 @@ function buildDishes(stage, { fromName, targetName, video }) {
 }
 
 /**
- * Act 2 with the target's realistic AI video (server/dishVideos.js): a 4:5 card that pops
- * up over a dimmed screen near the target and plays the clip once. It plays with sound unless
+ * A gag's realistic AI video of the target (server/gagVideos.js; the Dishes act 2, the Spanking
+ * after the walk-up): a 4:5 card that pops up over a dimmed screen near the target at `t0` ms
+ * (the stage's --t0 in CSS) and plays the clip once. It plays with sound unless
  * the app is muted or the phone won't autoplay sound, in which case it plays silently.
  */
-function playDishVideo(stage, target, src, later) {
+function playGagVideo(stage, target, src, later, t0) {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   // 4:5 portrait. The clips come out square from a square sticker, sometimes with a black band
@@ -613,15 +637,15 @@ function playDishVideo(stage, target, src, later) {
   const h = (w * 5) / 4;
   const cx = Math.max(w / 2 + 16, Math.min(vw - w / 2 - 16, target.x));
   const cy = Math.max(h / 2 + 70, Math.min(vh - h / 2 - 16, target.y));
-  part(stage, 'sfx-dish-dim', '', { left: `${vw / 2 - target.x}px`, top: `${vh / 2 - target.y}px` });
-  const card = part(stage, 'sfx-dish-video', '', { left: `${cx - target.x}px`, top: `${cy - target.y}px`, width: `${w}px`, height: `${h}px` });
+  part(stage, 'sfx-video-dim', '', { left: `${vw / 2 - target.x}px`, top: `${vh / 2 - target.y}px` });
+  const card = part(stage, 'sfx-video-card', '', { left: `${cx - target.x}px`, top: `${cy - target.y}px`, width: `${w}px`, height: `${h}px` });
   const v = document.createElement('video');
   v.src = src;
   v.playsInline = true;
   v.preload = 'auto';
   v.muted = true;
   card.appendChild(v);
-  later(DISHES_T0, () => {
+  later(t0, () => {
     v.currentTime = 0;
     v.muted = isMuted();
     const p = v.play();
@@ -724,7 +748,7 @@ function loadImage(src) {
   });
 }
 
-// Video URLs that have loaded enough to play through (the Dishes gag's AI videos).
+// Video URLs that have loaded enough to play through (the Dishes and Spanking AI videos).
 const loadedVideos = new Set();
 
 function loadVideo(src) {
@@ -753,7 +777,9 @@ function prepare(action) {
   if (action.itemId !== 'spank') return Promise.resolve();
   const srcs = [action.fromName, action.targetName].filter(Boolean).map((n) => faceOf(n).src).filter(Boolean);
   for (const set of Object.values(action.bodies || {})) if (set) srcs.push(...Object.values(set));
-  return Promise.race([Promise.all(srcs.map(loadImage)), new Promise((resolve) => setTimeout(resolve, 2500))]);
+  const loads = srcs.map(loadImage);
+  if (action.video) loads.push(loadVideo(action.video));
+  return Promise.race([Promise.all(loads), new Promise((resolve) => setTimeout(resolve, 2500))]);
 }
 
 /** The body sets whose every pose image is loaded; the others become null. */
@@ -769,10 +795,11 @@ function usableBodies(bodies) {
 function playNow(layer, { itemId, fromName, targetName, icon, bodies, video }) {
   const gag = GAGS[itemId];
   const usable = { bodies: usableBodies(bodies), video: video && loadedVideos.has(video) ? video : null };
-  const ms = gag ? gag.ms : 2000;
+  const pick = (v) => (typeof v === 'function' ? v(usable) : v);
+  const ms = gag ? pick(gag.ms) : 2000;
   if (gag) {
     gag.sound({ video: usable.video });
-    haptic(gag.haptic);
+    haptic(pick(gag.haptic));
   }
 
   const stage = document.createElement('div');

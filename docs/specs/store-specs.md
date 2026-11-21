@@ -111,6 +111,15 @@ card (with sound unless the app is muted or the phone blocks autoplay sound) ins
 stick-arms sink. Players without a ready clip (or without a photo sticker, or a GIF one) get the
 stick-arms version; so does a phone where the clip doesn't load within 2.5s.
 
+**Realistic AI video for the 🍑 Spanking** (`server/spankVideos.js`, same machinery as the Dishes
+clip via `server/gagVideos.js`): with `FAL_KEY` set, the target's photo sticker is filmed as a real
+person in boxers, back to the camera, looking back over their shoulder in fear while a dark hooded
+figure slaps their backside (~5s, with sound). Generated once per sticker in the background the
+first time that player is spanked, cached in `DATA_DIR/spankvideos/<sticker>/` (served at
+`/spankvideos/`). Once ready, the sender still walks over (~2.3s, footsteps only), then both
+puppets vanish, the screen dims and the clip plays in the 4:5 card instead of the drawn smacks
+(gag ~8.2s). No ready clip, or it doesn't load within 2.5s = the drawn version.
+
 **Realistic bodies for the 🍑 Spanking** (`server/bodies.js`): for each player photo sticker, the
 OpenAI image API draws that same person as a photorealistic full body in 8 side-view poses (stand,
 two walking steps, bent over, arm raised, arm swung through, cheering, hopping while rubbing their
