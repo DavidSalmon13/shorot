@@ -36,6 +36,10 @@ Requires Node >=18. Environment variables (see `.env.example`):
   🍑 Spanking gag's realistic bodies (`server/bodies.js`, image model `OPENAI_IMAGE_MODEL`,
   default `gpt-image-1`, quality `BODIES_QUALITY`, default `medium`): 8 poses per player
   sticker, generated once in the background and cached in `DATA_DIR/bodies`.
+- `FAL_KEY` — fal.ai key for the 🧽 Go Do the Dishes gag's realistic AI video (`server/dishVideos.js`,
+  model `FAL_VIDEO_MODEL`, default `wan/v2.6/image-to-video`): one ~5s clip per player sticker,
+  generated in the background the first time that player is targeted and cached in
+  `DATA_DIR/dishvideos`; until then (or with no key) the stick-arms animation plays.
 - `DATA_DIR` — where `rooms.json` (room state snapshot), uploaded
   background images, and player-uploaded stickers (`DATA_DIR/stickers`) are persisted; point this at a mounted volume in
   production (e.g. Railway) so state survives redeploys.

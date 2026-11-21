@@ -101,6 +101,16 @@ sticker-unlock system rather than adding a parallel one.
 | 🧽 **Go Do the Dishes!** | 200 | another player | ~8.4s, the longest gag, in two acts with the **players' own photos**: the sender's photo pops out of their icon (or walks in from the edge if they're not on screen) and stomps over to the target, red-faced with a pulsing 💢 and steam, points 👉 and yells "GO DO THE DISHES!!!", then storms off. Then, under a dim spotlight, the target's photo pops up behind a sink, grows stick arms and scrubs a grimy plate with a sponge while bubbles rise; one plate a second goes from the dirty stack to the clean one with a ✨ and a clink |
 | 🍑 **Spanking** | 300 | another player | ~5.6s, the priciest gag, played with the **players' own photos**: the sender's photo sticker (their emoji, big, if they have none) pops out of their icon and waddles across the screen to the target; the target's photo bends over, away from them; a hand swings down three times ("SMACK!", red handprints, the target's photo jolts, smack sounds + buzz), then the target's photo hops around ("OW!") while the sender's bounces. If the sender isn't on screen they walk in from the side. The gag waits up to 1.5s for both photos to load |
 
+**Realistic AI video for the 🧽 Go Do the Dishes** (`server/dishVideos.js`): with `FAL_KEY` set, an
+image-to-video model on fal.ai (default Wan 2.6) films each player's photo sticker as a real person
+grumpily washing dishes at a kitchen sink (~5s, with sound). Each clip is generated **once, in the
+background**, the first time that player is targeted (a few minutes), downloaded and cached on the
+volume (`DATA_DIR/dishvideos/<sticker>/`, served at `/dishvideos/`); fal's own file links are never
+sent to clients. Once a player's clip is ready, act 2 of the gag dims the screen and plays it in a 4:5
+card (with sound unless the app is muted or the phone blocks autoplay sound) instead of the
+stick-arms sink. Players without a ready clip (or without a photo sticker, or a GIF one) get the
+stick-arms version; so does a phone where the clip doesn't load within 2.5s.
+
 **Realistic bodies for the 🍑 Spanking** (`server/bodies.js`): for each player photo sticker, the
 OpenAI image API draws that same person as a photorealistic full body in 8 side-view poses (stand,
 two walking steps, bent over, arm raised, arm swung through, cheering, hopping while rubbing their

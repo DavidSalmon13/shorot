@@ -11,7 +11,7 @@
  * center-stage instead. Purely cosmetic. Styles: public/style.css ("Store gags").
  */
 
-import { sfx, haptic } from '../fx.js';
+import { sfx, haptic, isMuted } from '../fx.js';
 import { emojiForName } from './playerEmoji.js';
 
 const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -88,7 +88,7 @@ const GAGS = {
     ms: 8400,
     avatarClass: null,
     caption: (from, to) => `🧽 ${from} to ${to}: go do the dishes!!!`,
-    sound: () => sfx.dishes(),
+    sound: (a) => sfx.dishes({ video: !!a.video }),
     haptic: [40, 210, 40, 210, 40, 210, 40, 210, 40, 210, 40, 210, 40, 200, 300, 2400, 30, 220, 30, 220, 30, 220, 30, 220, 30],
     build: buildDishes,
   },
@@ -484,7 +484,7 @@ function reach(dx, dy, upper, fore) {
 const DISHES_T0 = 3000; // when the sink scene starts, in ms (matches --t0 in style.css)
 const SINK_RIM = 30; // how far the sink's rim is above the scene's feet line, in px
 
-function buildDishes(stage, { fromName, targetName }) {
+function buildDishes(stage, { fromName, targetName, video }) {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const target = centerOf(targetName) || { x: vw / 2, y: vh * 0.45 };
@@ -529,7 +529,19 @@ function buildDishes(stage, { fromName, targetName }) {
     '--fx': side === 1 ? -1 : 1,
   });
 
+  const later = (ms, fn) => setTimeout(() => stage.isConnected && fn(), ms);
+  later(400, () => boss.classList.add('pp-stomp'));
+  later(2150, () => {
+    boss.classList.remove('pp-stomp');
+    boss.classList.add('pp-yell');
+  });
+  later(DISHES_T0 - 300, () => boss.classList.add('pp-out'));
+
   // --- Act 2: the dishes --------------------------------------------------------------
+  if (video) {
+    playDishVideo(stage, target, video, later);
+    return;
+  }
   part(stage, 'sfx-dish-spot', '', { left: `${f.x}px`, top: `${f.y - 95}px` });
   // The photo floats above the sink's rim (SINK_RIM above the scene's feet line), so none of it
   // is hidden and its arms have room to reach down to the plate.
@@ -583,15 +595,43 @@ function buildDishes(stage, { fromName, targetName }) {
     });
   }
 
-  const later = (ms, fn) => setTimeout(() => stage.isConnected && fn(), ms);
-  later(400, () => boss.classList.add('pp-stomp'));
-  later(2150, () => {
-    boss.classList.remove('pp-stomp');
-    boss.classList.add('pp-yell');
-  });
-  later(DISHES_T0 - 300, () => boss.classList.add('pp-out'));
   later(DISHES_T0, () => washer.classList.add('dd-on'));
   later(DISHES_T0 + 4950, () => washer.classList.add('pp-out'));
+}
+
+/**
+ * Act 2 with the target's realistic AI video (server/dishVideos.js): a 4:5 card that pops
+ * up over a dimmed screen near the target and plays the clip once. It plays with sound unless
+ * the app is muted or the phone won't autoplay sound, in which case it plays silently.
+ */
+function playDishVideo(stage, target, src, later) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // 4:5 portrait. The clips come out square from a square sticker, sometimes with a black band
+  // down the right edge, which the card crops off (the video is pinned to its left edge).
+  const w = Math.min(270, vw - 40, ((vh - 120) * 4) / 5);
+  const h = (w * 5) / 4;
+  const cx = Math.max(w / 2 + 16, Math.min(vw - w / 2 - 16, target.x));
+  const cy = Math.max(h / 2 + 70, Math.min(vh - h / 2 - 16, target.y));
+  part(stage, 'sfx-dish-dim', '', { left: `${vw / 2 - target.x}px`, top: `${vh / 2 - target.y}px` });
+  const card = part(stage, 'sfx-dish-video', '', { left: `${cx - target.x}px`, top: `${cy - target.y}px`, width: `${w}px`, height: `${h}px` });
+  const v = document.createElement('video');
+  v.src = src;
+  v.playsInline = true;
+  v.preload = 'auto';
+  v.muted = true;
+  card.appendChild(v);
+  later(DISHES_T0, () => {
+    v.currentTime = 0;
+    v.muted = isMuted();
+    const p = v.play();
+    if (p && p.catch) {
+      p.catch(() => {
+        v.muted = true;
+        v.play().catch(() => {});
+      });
+    }
+  });
 }
 
 /**
@@ -684,10 +724,31 @@ function loadImage(src) {
   });
 }
 
+// Video URLs that have loaded enough to play through (the Dishes gag's AI videos).
+const loadedVideos = new Set();
+
+function loadVideo(src) {
+  if (loadedVideos.has(src)) return Promise.resolve();
+  return new Promise((resolve) => {
+    const v = document.createElement('video');
+    v.muted = true;
+    v.preload = 'auto';
+    v.oncanplaythrough = () => {
+      loadedVideos.add(src);
+      resolve();
+    };
+    v.onerror = resolve;
+    v.src = src;
+    v.load();
+  });
+}
+
 function prepare(action) {
   if (action.itemId === 'dishes') {
     const srcs = [action.fromName, action.targetName].filter(Boolean).map((n) => faceOf(n).src).filter(Boolean);
-    return Promise.race([Promise.all(srcs.map(loadImage)), new Promise((resolve) => setTimeout(resolve, 2500))]);
+    const loads = srcs.map(loadImage);
+    if (action.video) loads.push(loadVideo(action.video));
+    return Promise.race([Promise.all(loads), new Promise((resolve) => setTimeout(resolve, 2500))]);
   }
   if (action.itemId !== 'spank') return Promise.resolve();
   const srcs = [action.fromName, action.targetName].filter(Boolean).map((n) => faceOf(n).src).filter(Boolean);
@@ -705,11 +766,12 @@ function usableBodies(bodies) {
  * Plays one gag right away and returns how long it lasts. `icon` is the catalog emoji, used
  * as a fallback for an unknown item id.
  */
-function playNow(layer, { itemId, fromName, targetName, icon, bodies }) {
+function playNow(layer, { itemId, fromName, targetName, icon, bodies, video }) {
   const gag = GAGS[itemId];
+  const usable = { bodies: usableBodies(bodies), video: video && loadedVideos.has(video) ? video : null };
   const ms = gag ? gag.ms : 2000;
   if (gag) {
-    gag.sound();
+    gag.sound({ video: usable.video });
     haptic(gag.haptic);
   }
 
@@ -722,7 +784,7 @@ function playNow(layer, { itemId, fromName, targetName, icon, bodies }) {
     stage.classList.add('sfx-simple');
     part(stage, 'sfx-simple-glyph', icon || '✨');
   } else {
-    gag.build(stage, { fromName, targetName, bodies: usableBodies(bodies) });
+    gag.build(stage, { fromName, targetName, bodies: usable.bodies, video: usable.video });
   }
 
   const self = !fromName || fromName === targetName;

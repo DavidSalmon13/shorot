@@ -395,13 +395,15 @@ export const sfx = {
   },
   // Angry stomps across the room, a yelled "hey-HEY!", then the sink filling,
   // scrub-scrub-scrub, and a clink + shine per clean plate.
-  dishes() {
+  // With an AI video ({ video: true }) the clip brings its own sound, so only the walk-up plays.
+  dishes({ video = false } = {}) {
     for (let t = 0.3; t < 2.2; t += 0.25) {
       tone(70, 0.12, { type: 'sine', gain: 0.3, delay: t });
       noise(0.08, { gain: 0.12, delay: t, freq: 300 });
     }
     slide(520, 380, 0.16, { type: 'sawtooth', gain: 0.06, delay: 2.2 });
     slide(660, 420, 0.3, { type: 'sawtooth', gain: 0.07, delay: 2.42 });
+    if (video) return;
     noise(0.9, { gain: 0.16, delay: 3.6, freq: 1400, type: 'bandpass' });
     for (let t = 4.8; t < 7.8; t += 0.25) noise(0.12, { gain: 0.08, delay: t, freq: 3200, type: 'bandpass' });
     [5.3, 6.3, 7.3].forEach((t) => {

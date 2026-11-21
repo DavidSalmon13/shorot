@@ -74,6 +74,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
   },
 }));
 require('./server/bodies').registerBodiesRoutes(app, express);
+require('./server/dishVideos').registerDishVideoRoutes(app, express);
 stats.registerStatsRoutes(app);
 accounts.registerAccountRoutes(app);
 

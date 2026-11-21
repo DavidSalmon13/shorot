@@ -275,8 +275,8 @@ function fire(itemId, targetName) {
 }
 
 /** Plays the gag over the target's avatar (see storeFx.js). */
-function playAction({ itemId, fromName, targetName, bodies }) {
-  playStoreFx(layer, { itemId, fromName, targetName, bodies, icon: iconFor(itemId) });
+function playAction({ itemId, fromName, targetName, bodies, video }) {
+  playStoreFx(layer, { itemId, fromName, targetName, bodies, video, icon: iconFor(itemId) });
 }
 
 let toastTimer = null;
