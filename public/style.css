@@ -6928,7 +6928,7 @@ body.store-picking [data-player] {
 .dd-arm {
   position: absolute;
   left: calc(var(--s) * var(--sx));
-  top: var(--sy, -64px); /* ARM.shoulderUp in storeFx.js */
+  top: var(--sy, -8px); /* ARM.shoulderUp in storeFx.js */
   width: 0;
   height: 0;
   transform: scaleX(var(--s));
@@ -6974,12 +6974,12 @@ body.store-picking [data-player] {
    are set per arm by storeFx.js so the hands land on the plate; scrubbing swings around them. */
 @keyframes dd-grow-upper {
   from { width: 0; }
-  to { width: var(--u, 58px); }
+  to { width: var(--u, 52px); }
 }
 
 @keyframes dd-grow-fore {
   from { width: 0; }
-  to { width: var(--l, 66px); }
+  to { width: var(--l, 58px); }
 }
 
 @keyframes dd-scrub-upper {

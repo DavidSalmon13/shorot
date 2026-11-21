@@ -423,9 +423,10 @@ function buildSpank(stage, { fromName, targetName, bodies }) {
  * the rest of the timeline is CSS animation delays (public/style.css "Go do the dishes"),
  * the dishes part offset by --t0 (DISHES_T0).
  */
-// Stick-arm geometry for the dishes gag, in px from the photo's feet (on the sink's rim): the
-// shoulders' height, the bone lengths, and where the hands meet the plate (out from the middle, up).
-const ARM = { shoulderUp: 64, upper: 58, fore: 66, hand: 24, handUp: 4 };
+// Stick-arm geometry for the dishes gag, in px. The photo floats `lift` above the sink's rim; the
+// arms grow from its two bottom corners (`shoulderUp` above its bottom edge) and reach down to
+// the plate on the rim (hands `hand` out from the middle, `handUp` above the rim).
+const ARM = { lift: 56, shoulderUp: 8, upper: 52, fore: 58, hand: 24, handUp: 4 };
 
 /**
  * Where the sticker's visible pixels start and end (px from its center, left negative) on the
@@ -489,7 +490,7 @@ function buildDishes(stage, { fromName, targetName }) {
   const target = centerOf(targetName) || { x: vw / 2, y: vh * 0.45 };
   const feet = {
     x: Math.max(122, Math.min(vw - 122, target.x)),
-    y: Math.max(PUPPET_H + 100, Math.min(vh - 30, target.y + 40)),
+    y: Math.max(PUPPET_H + 150, Math.min(vh - 30, target.y + 40)),
   };
   const rel = (p) => ({ x: p.x - target.x, y: p.y - target.y });
   const at = (p) => `translate(${p.x}px, ${p.y}px)`;
@@ -529,23 +530,24 @@ function buildDishes(stage, { fromName, targetName }) {
   });
 
   // --- Act 2: the dishes --------------------------------------------------------------
-  part(stage, 'sfx-dish-spot', '', { left: `${f.x}px`, top: `${f.y - 70}px` });
-  // The photo stands on the sink's rim (SINK_RIM above the scene's feet line), so none of it is hidden.
-  const onRim = { x: f.x, y: f.y - SINK_RIM };
+  part(stage, 'sfx-dish-spot', '', { left: `${f.x}px`, top: `${f.y - 95}px` });
+  // The photo floats above the sink's rim (SINK_RIM above the scene's feet line), so none of it
+  // is hidden and its arms have room to reach down to the plate.
+  const onRim = { x: f.x, y: f.y - SINK_RIM - ARM.lift };
   const washer = puppet(stage, 'pp-washer', targetName, null, false);
   washer.style.transform = at(onRim);
 
-  // Each arm is attached to the sticker's own edge at shoulder height (found from its pixels),
-  // and a two-bone reach (shoulder -> elbow -> hand) bends the elbow outward so the hand lands
-  // on the plate at the rim.
+  // Each arm grows from one of the sticker's bottom corners (its visible edge, found from its
+  // pixels), and a two-bone reach (shoulder -> elbow -> hand) bends the elbow outward so the hand
+  // lands on the plate at the rim.
   const edges = stickerEdges(washer.querySelector('img'), ARM.shoulderUp);
   const rig = document.createElement('span');
   rig.className = 'sfx-dish-rig';
   rig.style.transform = at(onRim);
   rig.innerHTML = [-1, 1]
     .map((s) => {
-      const shoulder = Math.max(14, (s === 1 ? edges.right : -edges.left) - 5);
-      const { a1, a2 } = reach(ARM.hand - shoulder, ARM.shoulderUp - ARM.handUp, ARM.upper, ARM.fore);
+      const shoulder = Math.max(14, (s === 1 ? edges.right : -edges.left) - 4);
+      const { a1, a2 } = reach(ARM.hand - shoulder, ARM.shoulderUp + ARM.lift - ARM.handUp, ARM.upper, ARM.fore);
       const vars = `--s:${s};--sx:${shoulder}px;--sy:${-ARM.shoulderUp}px;--u:${ARM.upper}px;--l:${ARM.fore}px;--a1:${a1}deg;--a2:${a2}deg`;
       return `<span class="dd-arm" style="${vars}"><span class="dd-upper"><span class="dd-fore"><span class="dd-hand">${s === 1 ? '<span class="dd-sponge">🧽</span>' : ''}</span></span></span></span>`;
     })
