@@ -42,7 +42,23 @@ export function showScreen(name) {
   if (reactionRow) reactionRow.classList.toggle('hidden', atEntry);
   // The store tray hides on entry screens too; when shown, it still collapses via :empty
   // (CSS) for guests / players with no charges.
-  if (storeActionRow) storeActionRow.classList.toggle('hidden', atEntry);
+  if (storeActionRow) {
+    storeActionRow.classList.toggle('hidden', atEntry);
+    dockStoreTray(name === 'lobby');
+  }
+}
+
+// In the lobby the store tray sits at the top left of the lobby itself, above the player
+// count (it scrolls with the page); on every other screen it floats in the bottom-right corner.
+const storeTrayHome = storeActionRow && { parent: storeActionRow.parentNode, next: storeActionRow.nextSibling };
+const lobbyTopRow = document.querySelector('#lobby-screen .lobby-top-row');
+
+function dockStoreTray(inLobby) {
+  if (!lobbyTopRow) return;
+  const docked = storeActionRow.parentNode === lobbyTopRow.parentNode;
+  if (inLobby && !docked) lobbyTopRow.parentNode.insertBefore(storeActionRow, lobbyTopRow);
+  else if (!inLobby && docked) storeTrayHome.parent.insertBefore(storeActionRow, storeTrayHome.next);
+  storeActionRow.classList.toggle('store-action-row-docked', inLobby);
 }
 
 export function showGenerating(game) {

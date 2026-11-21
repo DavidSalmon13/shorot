@@ -393,13 +393,18 @@ export const sfx = {
     noise(2.2, { gain: 0.5, delay: 0.5, freq: 260 });
     slide(90, 30, 1.8, { type: 'sine', gain: 0.25, delay: 0.5 });
   },
-  // A bossy "hey-HEY!", the sink filling, scrub-scrub-scrub, and a clink + shine per clean plate.
+  // Angry stomps across the room, a yelled "hey-HEY!", then the sink filling,
+  // scrub-scrub-scrub, and a clink + shine per clean plate.
   dishes() {
-    slide(520, 380, 0.16, { type: 'sawtooth', gain: 0.06 });
-    slide(660, 420, 0.28, { type: 'sawtooth', gain: 0.07, delay: 0.2 });
-    noise(0.9, { gain: 0.18, delay: 0.9, freq: 1400, type: 'bandpass' });
-    for (let t = 1.75; t < 4.9; t += 0.25) noise(0.12, { gain: 0.09, delay: t, freq: 3200, type: 'bandpass' });
-    [2.3, 3.3, 4.3].forEach((t) => {
+    for (let t = 0.3; t < 2.2; t += 0.25) {
+      tone(70, 0.12, { type: 'sine', gain: 0.3, delay: t });
+      noise(0.08, { gain: 0.12, delay: t, freq: 300 });
+    }
+    slide(520, 380, 0.16, { type: 'sawtooth', gain: 0.06, delay: 2.2 });
+    slide(660, 420, 0.3, { type: 'sawtooth', gain: 0.07, delay: 2.42 });
+    noise(0.9, { gain: 0.16, delay: 3.6, freq: 1400, type: 'bandpass' });
+    for (let t = 4.8; t < 7.8; t += 0.25) noise(0.12, { gain: 0.08, delay: t, freq: 3200, type: 'bandpass' });
+    [5.3, 6.3, 7.3].forEach((t) => {
       tone(2637, 0.12, { type: 'sine', gain: 0.07, delay: t });
       tone(3520, 0.25, { type: 'sine', gain: 0.04, delay: t + 0.08 });
     });

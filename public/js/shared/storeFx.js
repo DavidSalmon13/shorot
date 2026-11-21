@@ -85,11 +85,11 @@ const GAGS = {
     build: buildSpank,
   },
   dishes: {
-    ms: 5600,
+    ms: 8400,
     avatarClass: null,
     caption: (from, to) => `🧽 ${from} to ${to}: go do the dishes!!!`,
     sound: () => sfx.dishes(),
-    haptic: [60, 60, 120, 1400, 30, 220, 30, 220, 30, 220, 30, 220, 30, 220, 30],
+    haptic: [40, 210, 40, 210, 40, 210, 40, 210, 40, 210, 40, 210, 40, 200, 300, 2400, 30, 220, 30, 220, 30, 220, 30, 220, 30],
     build: buildDishes,
   },
   lightning: {
@@ -415,14 +415,17 @@ function buildSpank(stage, { fromName, targetName, bodies }) {
 }
 
 /**
- * 🧽 Go do the dishes: "GO DO THE DISHES!!!" is yelled at the target, their photo pops up big
- * out of their icon, a sink rises in front of it, stick arms grow out of its sides and scrub a
- * plate in the suds while the dirty stack shrinks and the clean rack fills (one plate a second).
- * Everything is placed by the photo's feet (stage-relative, kept on screen); the arms are
- * nested segments (upper arm > forearm > hand) whose rotations do the scrubbing. The timeline
- * lives in CSS animation delays (public/style.css "Go do the dishes").
+ * 🧽 Go do the dishes, in two acts. First the sender's photo pops out of their icon (or walks
+ * in from the edge) and stomps over to the target, red in the face with a 💢, stands beside
+ * them, points and yells "GO DO THE DISHES!!!", then storms off. Then the target's photo pops
+ * up behind a sink, grows stick arms and scrubs plates: one a second goes from the dirty stack
+ * to the clean one. Stage-relative positions, kept on screen. The walk is a Web Animation;
+ * the rest of the timeline is CSS animation delays (public/style.css "Go do the dishes"),
+ * the dishes part offset by --t0 (DISHES_T0).
  */
-function buildDishes(stage, { targetName }) {
+const DISHES_T0 = 3000; // when the sink scene starts, in ms (matches --t0 in style.css)
+
+function buildDishes(stage, { fromName, targetName }) {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const target = centerOf(targetName) || { x: vw / 2, y: vh * 0.45 };
@@ -430,15 +433,47 @@ function buildDishes(stage, { targetName }) {
     x: Math.max(122, Math.min(vw - 122, target.x)),
     y: Math.max(PUPPET_H + 70, Math.min(vh - 30, target.y + 40)),
   };
-  const f = { x: feet.x - target.x, y: feet.y - target.y };
-  const at = `translate(${f.x}px, ${f.y}px)`;
+  const rel = (p) => ({ x: p.x - target.x, y: p.y - target.y });
+  const at = (p) => `translate(${p.x}px, ${p.y}px)`;
+  const f = rel(feet);
+  const centered = (x, half) => Math.max(half, Math.min(vw - half, x)) - target.x;
 
-  const shout = part(stage, 'sfx-dish-shout', 'GO DO THE DISHES!!!', { left: `${f.x}px`, top: `${f.y - PUPPET_H - 34}px` });
-  if (feet.x < 150) shout.style.left = `${f.x + 150 - feet.x}px`;
-  else if (feet.x > vw - 150) shout.style.left = `${f.x - (feet.x - (vw - 150))}px`;
+  // --- Act 1: the angry walk-up -------------------------------------------------------
+  const from = fromName && fromName !== targetName ? centerOf(fromName) : null;
+  let side = from ? (from.x < target.x ? -1 : 1) : 1;
+  if (target.x + side * 105 < 60 || target.x + side * 105 > vw - 60) side = -side;
+  const standAbs = { x: Math.max(60, Math.min(vw - 60, target.x + side * 105)), y: feet.y };
+  let startAbs = from
+    ? { x: Math.max(60, Math.min(vw - 60, from.x)), y: Math.max(PUPPET_H + 30, Math.min(vh - 10, from.y + 40)) }
+    : { x: side === 1 ? vw + 70 : -70, y: feet.y };
+  if (Math.hypot(startAbs.x - standAbs.x, startAbs.y - standAbs.y) < 60) startAbs = { x: side === 1 ? vw + 70 : -70, y: feet.y };
+  const start = rel(startAbs);
+  const stand = rel(standAbs);
 
+  const boss = puppet(stage, 'pp-boss', fromName || targetName, null, false);
+  boss.style.transform = at(start);
+  boss.style.setProperty('--side', side);
+  const fume = document.createElement('span');
+  fume.className = 'dd-fume';
+  fume.innerHTML = '<span class="dd-anger">💢</span><span class="dd-steam dd-steam-l">💨</span><span class="dd-steam dd-steam-r">💨</span>';
+  boss.appendChild(fume);
+  if (boss.animate) {
+    boss.animate([{ transform: at(start) }, { transform: at(stand) }], { duration: 1750, delay: 400, easing: 'ease-in-out', fill: 'forwards' });
+  } else {
+    boss.style.transform = at(stand);
+  }
+
+  part(stage, 'sfx-dish-shout', 'GO DO THE DISHES!!!', { left: `${centered(standAbs.x, 150)}px`, top: `${f.y - PUPPET_H - 30}px` });
+  part(stage, 'sfx-dish-point', '👉', {
+    left: `${stand.x - side * 62}px`,
+    top: `${f.y - PUPPET_H * 0.5}px`,
+    '--fx': side === 1 ? -1 : 1,
+  });
+
+  // --- Act 2: the dishes --------------------------------------------------------------
+  part(stage, 'sfx-dish-spot', '', { left: `${f.x}px`, top: `${f.y - 50}px` });
   const washer = puppet(stage, 'pp-washer', targetName, null, false);
-  washer.style.transform = at;
+  washer.style.transform = at(f);
 
   // Shoulders sit on the sides of the photo, half way up; its width comes from the (preloaded) image.
   const img = washer.querySelector('img');
@@ -446,46 +481,51 @@ function buildDishes(stage, { targetName }) {
   if (img && img.naturalWidth && img.naturalHeight) w = Math.min(130, (PUPPET_H * img.naturalWidth) / img.naturalHeight);
   const rig = document.createElement('span');
   rig.className = 'sfx-dish-rig';
-  rig.style.transform = at;
+  rig.style.transform = at(f);
   rig.style.setProperty('--sx', `${Math.max(26, w / 2 - 10)}px`);
   rig.innerHTML = [-1, 1]
     .map((s) => `<span class="dd-arm" style="--s:${s}"><span class="dd-upper"><span class="dd-fore"><span class="dd-hand">${s === 1 ? '<span class="dd-sponge">🧽</span>' : ''}</span></span></span></span>`)
     .join('');
   stage.appendChild(rig);
 
-  // The plate being scrubbed, with grime that wipes off once a second.
-  const plate = part(stage, 'sfx-dish-plate', '🍽️', { left: `${f.x}px`, top: `${f.y - 38}px` });
-  const grime = document.createElement('span');
-  grime.className = 'dd-grime';
-  plate.appendChild(grime);
+  const grimy = (el) => {
+    const g = document.createElement('span');
+    g.className = 'dd-grime';
+    el.appendChild(g);
+    return el;
+  };
+  grimy(part(stage, 'sfx-dish-plate', '🍽️', { left: `${f.x}px`, top: `${f.y - 38}px` }));
+  part(stage, 'sfx-dish-sink', '', { left: `${f.x}px`, top: `${f.y - 10}px` }).innerHTML = '<span class="dd-water"></span>';
 
-  const sink = part(stage, 'sfx-dish-sink', '', { left: `${f.x}px`, top: `${f.y - 10}px` });
-  sink.innerHTML = '<span class="dd-water"></span><span class="dd-tap"></span>';
-
-  // Dirty stack on one side of the counter, clean rack on the other: a plate moves over each second.
-  const cleanTimes = [2300, 3300, 4300];
+  // Dirty stack on one side of the sink, clean stack on the other: one plate moves per second.
+  const cleanTimes = [2300, 3300, 4300].map((t) => t + DISHES_T0);
   cleanTimes.forEach((t, i) => {
-    part(stage, 'sfx-dish-dirty', '🍽️', { left: `${f.x - 102}px`, top: `${f.y - 40 - i * 9}px`, '--gone': `${cleanTimes[2 - i]}ms` });
-    part(stage, 'sfx-dish-clean', '🍽️', { left: `${f.x + 102}px`, top: `${f.y - 40 - i * 9}px`, '--at': `${t}ms` });
-    part(stage, 'sfx-dish-shine', '✨', { left: `${f.x + 108}px`, top: `${f.y - 58 - i * 9}px`, '--at': `${t}ms` });
+    grimy(part(stage, 'sfx-dish-dirty', '🍽️', { left: `${f.x - 102}px`, top: `${f.y - 22 - i * 8}px`, '--gone': `${cleanTimes[2 - i] - 300}ms` }));
+    part(stage, 'sfx-dish-clean', '🍽️', { left: `${f.x + 102}px`, top: `${f.y - 22 - i * 8}px`, '--at': `${t}ms` });
+    part(stage, 'sfx-dish-shine', '✨', { left: `${f.x + 112}px`, top: `${f.y - 40 - i * 8}px`, '--at': `${t}ms` });
   });
-  part(stage, 'sfx-dish-fly', '🪰', { left: `${f.x - 102}px`, top: `${f.y - 72}px` });
 
-  for (let i = 0; i < 16; i++) {
-    const size = 7 + Math.round(Math.random() * 9);
+  for (let i = 0; i < 10; i++) {
+    const size = 8 + Math.round(Math.random() * 7);
     part(stage, 'sfx-dish-bubble', '', {
-      left: `${f.x - 50 + Math.random() * 100}px`,
+      left: `${f.x - 45 + Math.random() * 90}px`,
       top: `${f.y - 30}px`,
       width: `${size}px`,
       height: `${size}px`,
-      '--drift': `${Math.round(Math.random() * 40 - 20)}px`,
-      animationDelay: `${1500 + i * 210}ms`,
+      '--drift': `${Math.round(Math.random() * 30 - 15)}px`,
+      animationDelay: `${DISHES_T0 + 1900 + i * 290}ms`,
     });
   }
-  part(stage, 'sfx-dish-sweat', '💦', { left: `${f.x + w * 0.3}px`, top: `${f.y - PUPPET_H + 18}px` });
 
-  // The rest of the timeline is CSS (delays from the start); only the photo needs a nudge to fade.
-  setTimeout(() => stage.isConnected && washer.classList.add('pp-out'), 4950);
+  const later = (ms, fn) => setTimeout(() => stage.isConnected && fn(), ms);
+  later(400, () => boss.classList.add('pp-stomp'));
+  later(2150, () => {
+    boss.classList.remove('pp-stomp');
+    boss.classList.add('pp-yell');
+  });
+  later(DISHES_T0 - 300, () => boss.classList.add('pp-out'));
+  later(DISHES_T0, () => washer.classList.add('dd-on'));
+  later(DISHES_T0 + 4950, () => washer.classList.add('pp-out'));
 }
 
 /**
@@ -580,8 +620,8 @@ function loadImage(src) {
 
 function prepare(action) {
   if (action.itemId === 'dishes') {
-    const src = faceOf(action.targetName).src;
-    return src ? Promise.race([loadImage(src), new Promise((resolve) => setTimeout(resolve, 2500))]) : Promise.resolve();
+    const srcs = [action.fromName, action.targetName].filter(Boolean).map((n) => faceOf(n).src).filter(Boolean);
+    return Promise.race([Promise.all(srcs.map(loadImage)), new Promise((resolve) => setTimeout(resolve, 2500))]);
   }
   if (action.itemId !== 'spank') return Promise.resolve();
   const srcs = [action.fromName, action.targetName].filter(Boolean).map((n) => faceOf(n).src).filter(Boolean);

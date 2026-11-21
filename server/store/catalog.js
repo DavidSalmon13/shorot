@@ -14,7 +14,7 @@
 // Anti-abuse timings for consumable actions, all in ms (see store-specs.md "Cooldowns"
 // and "Punch-back"). Tunable live-service-style numbers.
 const COOLDOWNS = {
-  GAG_SLOT_MS: 6000, // how long one gag occupies its target (the longest show, ~5.6s); hits on a
+  GAG_SLOT_MS: 8500, // how long one gag occupies its target (the longest show, the dishes, ~8.4s); hits on a
   //                     busy player queue behind it and play one after another on every phone
   MAX_QUEUED_GAGS: 4, // at most this many gags playing + waiting on one player (caps pile-ons)
   PUNCHBACK_WINDOW_MS: 5000, // free retaliation window for a hit target
@@ -53,7 +53,7 @@ const STORE_ITEMS = [
   { id: 'glove', type: 'consumable', target: 'other', price: 100, icon: '🥊', name: 'Boxing Glove', description: "Punch another player's icon. POW!" },
   { id: 'crown', type: 'consumable', target: 'other', price: 120, icon: '👑', name: 'Crown a Player', description: 'Drop a crown on another player - a nice one.' },
   { id: 'lightning', type: 'consumable', target: 'other', price: 150, icon: '⚡', name: 'Lightning Strike', description: 'Call down a lightning bolt - flash, thunder, and a smoking, charred icon.' },
-  { id: 'dishes', type: 'consumable', target: 'other', price: 200, icon: '🧽', name: 'Go Do the Dishes!', description: 'Order another player to the sink. Their icon grows stick arms and scrubs a pile of dirty plates.' },
+  { id: 'dishes', type: 'consumable', target: 'other', price: 200, icon: '🧽', name: 'Go Do the Dishes!', description: 'Your photo stomps over to another player and yells at them to do the dishes - then they grow stick arms and scrub a pile of dirty plates.' },
   { id: 'spank', type: 'consumable', target: 'other', price: 300, icon: '🍑', name: 'Spanking', description: 'Your own photo marches out of your icon, over to another player, and spanks them. Three times.' },
 ];
 
