@@ -6928,7 +6928,7 @@ body.store-picking [data-player] {
 .dd-arm {
   position: absolute;
   left: calc(var(--s) * var(--sx));
-  top: -70px; /* ~55% up a PUPPET_H photo */
+  top: -52px; /* ~40% up a PUPPET_H photo */
   width: 0;
   height: 0;
   transform: scaleX(var(--s));
@@ -6944,24 +6944,24 @@ body.store-picking [data-player] {
 .dd-fore {
   position: absolute;
   width: 0;
-  height: 5px;
-  border-radius: 3px;
-  background: #1e1e1e;
-  box-shadow: 0 0 0 1.5px #fff;
-  transform-origin: 2.5px 50%;
+  height: 4px;
+  border-radius: 2px;
+  background: #f4f4f4;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.5);
+  transform-origin: 2px 50%;
 }
 
 .dd-upper {
   left: 0;
-  top: -2.5px;
-  transform: rotate(55deg);
+  top: -2px;
+  transform: rotate(50deg);
   animation: dd-grow-upper 0.3s ease-out calc(var(--t0) + 1.3s) both, dd-scrub-upper 0.25s ease-in-out calc(var(--t0) + 1.75s) 12 alternate;
 }
 
 .dd-fore {
-  left: calc(100% - 3px);
+  left: calc(100% - 4px);
   top: 0;
-  transform: rotate(100deg);
+  transform: rotate(105deg);
   animation: dd-grow-fore 0.3s ease-out calc(var(--t0) + 1.5s) both, dd-scrub-fore 0.25s ease-in-out calc(var(--t0) + 1.75s) 12 alternate;
 }
 
@@ -6969,35 +6969,37 @@ body.store-picking [data-player] {
 .dd-arm:first-child .dd-upper { animation-delay: calc(var(--t0) + 1.3s), calc(var(--t0) + 2s); }
 .dd-arm:first-child .dd-fore { animation-delay: calc(var(--t0) + 1.5s), calc(var(--t0) + 2s); }
 
+/* Stick-man arms: a long upper arm out and down to the elbow, a longer forearm back in to the
+   plate, the hand a dot. Lengths/angles put the hands on the plate at the sink's rim. */
 @keyframes dd-grow-upper {
   from { width: 0; }
-  to { width: 30px; }
+  to { width: 42px; }
 }
 
 @keyframes dd-grow-fore {
   from { width: 0; }
-  to { width: 36px; }
+  to { width: 50px; }
 }
 
 @keyframes dd-scrub-upper {
-  from { transform: rotate(48deg); }
-  to { transform: rotate(64deg); }
+  from { transform: rotate(43deg); }
+  to { transform: rotate(57deg); }
 }
 
 @keyframes dd-scrub-fore {
-  from { transform: rotate(88deg); }
-  to { transform: rotate(116deg); }
+  from { transform: rotate(96deg); }
+  to { transform: rotate(118deg); }
 }
 
 .dd-hand {
   position: absolute;
-  left: calc(100% - 6px);
+  left: calc(100% - 7px);
   top: -3px;
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: #1e1e1e;
-  box-shadow: 0 0 0 1.5px #fff;
+  background: #f4f4f4;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
   opacity: 0;
   animation: dd-appear 0.2s ease calc(var(--t0) + 1.75s) both;
 }

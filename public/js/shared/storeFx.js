@@ -424,6 +424,7 @@ function buildSpank(stage, { fromName, targetName, bodies }) {
  * the dishes part offset by --t0 (DISHES_T0).
  */
 const DISHES_T0 = 3000; // when the sink scene starts, in ms (matches --t0 in style.css)
+const SINK_RIM = 30; // how far the sink's rim is above the scene's feet line, in px
 
 function buildDishes(stage, { fromName, targetName }) {
   const vw = window.innerWidth;
@@ -431,7 +432,7 @@ function buildDishes(stage, { fromName, targetName }) {
   const target = centerOf(targetName) || { x: vw / 2, y: vh * 0.45 };
   const feet = {
     x: Math.max(122, Math.min(vw - 122, target.x)),
-    y: Math.max(PUPPET_H + 70, Math.min(vh - 30, target.y + 40)),
+    y: Math.max(PUPPET_H + 100, Math.min(vh - 30, target.y + 40)),
   };
   const rel = (p) => ({ x: p.x - target.x, y: p.y - target.y });
   const at = (p) => `translate(${p.x}px, ${p.y}px)`;
@@ -471,9 +472,11 @@ function buildDishes(stage, { fromName, targetName }) {
   });
 
   // --- Act 2: the dishes --------------------------------------------------------------
-  part(stage, 'sfx-dish-spot', '', { left: `${f.x}px`, top: `${f.y - 50}px` });
+  part(stage, 'sfx-dish-spot', '', { left: `${f.x}px`, top: `${f.y - 70}px` });
+  // The photo stands on the sink's rim (SINK_RIM above the scene's feet line), so none of it is hidden.
+  const onRim = { x: f.x, y: f.y - SINK_RIM };
   const washer = puppet(stage, 'pp-washer', targetName, null, false);
-  washer.style.transform = at(f);
+  washer.style.transform = at(onRim);
 
   // Shoulders sit on the sides of the photo, half way up; its width comes from the (preloaded) image.
   const img = washer.querySelector('img');
@@ -481,8 +484,8 @@ function buildDishes(stage, { fromName, targetName }) {
   if (img && img.naturalWidth && img.naturalHeight) w = Math.min(130, (PUPPET_H * img.naturalWidth) / img.naturalHeight);
   const rig = document.createElement('span');
   rig.className = 'sfx-dish-rig';
-  rig.style.transform = at(f);
-  rig.style.setProperty('--sx', `${Math.max(26, w / 2 - 10)}px`);
+  rig.style.transform = at(onRim);
+  rig.style.setProperty('--sx', `${Math.max(22, w / 2 - 16)}px`);
   rig.innerHTML = [-1, 1]
     .map((s) => `<span class="dd-arm" style="--s:${s}"><span class="dd-upper"><span class="dd-fore"><span class="dd-hand">${s === 1 ? '<span class="dd-sponge">🧽</span>' : ''}</span></span></span></span>`)
     .join('');
@@ -494,7 +497,7 @@ function buildDishes(stage, { fromName, targetName }) {
     el.appendChild(g);
     return el;
   };
-  grimy(part(stage, 'sfx-dish-plate', '🍽️', { left: `${f.x}px`, top: `${f.y - 38}px` }));
+  grimy(part(stage, 'sfx-dish-plate', '🍽️', { left: `${f.x}px`, top: `${f.y - SINK_RIM - 2}px` }));
   part(stage, 'sfx-dish-sink', '', { left: `${f.x}px`, top: `${f.y - 10}px` }).innerHTML = '<span class="dd-water"></span>';
 
   // Dirty stack on one side of the sink, clean stack on the other: one plate moves per second.
