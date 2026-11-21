@@ -393,6 +393,17 @@ export const sfx = {
     noise(2.2, { gain: 0.5, delay: 0.5, freq: 260 });
     slide(90, 30, 1.8, { type: 'sine', gain: 0.25, delay: 0.5 });
   },
+  // A bossy "hey-HEY!", the sink filling, scrub-scrub-scrub, and a clink + shine per clean plate.
+  dishes() {
+    slide(520, 380, 0.16, { type: 'sawtooth', gain: 0.06 });
+    slide(660, 420, 0.28, { type: 'sawtooth', gain: 0.07, delay: 0.2 });
+    noise(0.9, { gain: 0.18, delay: 0.9, freq: 1400, type: 'bandpass' });
+    for (let t = 1.75; t < 4.9; t += 0.25) noise(0.12, { gain: 0.09, delay: t, freq: 3200, type: 'bandpass' });
+    [2.3, 3.3, 4.3].forEach((t) => {
+      tone(2637, 0.12, { type: 'sine', gain: 0.07, delay: t });
+      tone(3520, 0.25, { type: 'sine', gain: 0.04, delay: t + 0.08 });
+    });
+  },
   // Footsteps across the room, three sharp smacks, then a yelp.
   spank() {
     for (let i = 0; i < 9; i++) tone(i % 2 ? 160 : 190, 0.05, { type: 'triangle', gain: 0.07, delay: 0.35 + i * 0.24 });

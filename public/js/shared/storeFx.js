@@ -1,5 +1,5 @@
 /**
- * The visual + audio show for Store consumables (🥊 🍅 👑 😂 🎺 💣), played on every phone
+ * The visual + audio show for Store consumables (🥊 🍅 👑 😂 🎺 💣 🧽 ...), played on every phone
  * by storeActions.js when the server broadcasts a `storeAction`. Each gag is a few seconds
  * long and built from several parts: an entrance, an impact (flash, burst, particles), a
  * lingering mark on the target's avatar (a splat, dizzy stars, a crown...), and a caption
@@ -84,6 +84,14 @@ const GAGS = {
     haptic: [0, 2900, 70, 430, 70, 430, 120],
     build: buildSpank,
   },
+  dishes: {
+    ms: 5600,
+    avatarClass: null,
+    caption: (from, to) => `🧽 ${from} to ${to}: go do the dishes!!!`,
+    sound: () => sfx.dishes(),
+    haptic: [60, 60, 120, 1400, 30, 220, 30, 220, 30, 220, 30, 220, 30, 220, 30],
+    build: buildDishes,
+  },
   lightning: {
     ms: 4600,
     avatarClass: 'store-av-charred',
@@ -106,7 +114,8 @@ function part(stage, className, text, style) {
   const el = document.createElement('span');
   el.className = `sfx-part ${className}`;
   if (text) el.textContent = text;
-  if (style) Object.assign(el.style, style);
+  // Custom properties (--nx, --at, ...) need setProperty; Object.assign silently drops them.
+  if (style) for (const [k, v] of Object.entries(style)) k.startsWith('--') ? el.style.setProperty(k, v) : (el.style[k] = v);
   stage.appendChild(el);
   return el;
 }
@@ -406,6 +415,80 @@ function buildSpank(stage, { fromName, targetName, bodies }) {
 }
 
 /**
+ * 🧽 Go do the dishes: "GO DO THE DISHES!!!" is yelled at the target, their photo pops up big
+ * out of their icon, a sink rises in front of it, stick arms grow out of its sides and scrub a
+ * plate in the suds while the dirty stack shrinks and the clean rack fills (one plate a second).
+ * Everything is placed by the photo's feet (stage-relative, kept on screen); the arms are
+ * nested segments (upper arm > forearm > hand) whose rotations do the scrubbing. The timeline
+ * lives in CSS animation delays (public/style.css "Go do the dishes").
+ */
+function buildDishes(stage, { targetName }) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const target = centerOf(targetName) || { x: vw / 2, y: vh * 0.45 };
+  const feet = {
+    x: Math.max(122, Math.min(vw - 122, target.x)),
+    y: Math.max(PUPPET_H + 70, Math.min(vh - 30, target.y + 40)),
+  };
+  const f = { x: feet.x - target.x, y: feet.y - target.y };
+  const at = `translate(${f.x}px, ${f.y}px)`;
+
+  const shout = part(stage, 'sfx-dish-shout', 'GO DO THE DISHES!!!', { left: `${f.x}px`, top: `${f.y - PUPPET_H - 34}px` });
+  if (feet.x < 150) shout.style.left = `${f.x + 150 - feet.x}px`;
+  else if (feet.x > vw - 150) shout.style.left = `${f.x - (feet.x - (vw - 150))}px`;
+
+  const washer = puppet(stage, 'pp-washer', targetName, null, false);
+  washer.style.transform = at;
+
+  // Shoulders sit on the sides of the photo, half way up; its width comes from the (preloaded) image.
+  const img = washer.querySelector('img');
+  let w = 110;
+  if (img && img.naturalWidth && img.naturalHeight) w = Math.min(130, (PUPPET_H * img.naturalWidth) / img.naturalHeight);
+  const rig = document.createElement('span');
+  rig.className = 'sfx-dish-rig';
+  rig.style.transform = at;
+  rig.style.setProperty('--sx', `${Math.max(26, w / 2 - 10)}px`);
+  rig.innerHTML = [-1, 1]
+    .map((s) => `<span class="dd-arm" style="--s:${s}"><span class="dd-upper"><span class="dd-fore"><span class="dd-hand">${s === 1 ? '<span class="dd-sponge">🧽</span>' : ''}</span></span></span></span>`)
+    .join('');
+  stage.appendChild(rig);
+
+  // The plate being scrubbed, with grime that wipes off once a second.
+  const plate = part(stage, 'sfx-dish-plate', '🍽️', { left: `${f.x}px`, top: `${f.y - 38}px` });
+  const grime = document.createElement('span');
+  grime.className = 'dd-grime';
+  plate.appendChild(grime);
+
+  const sink = part(stage, 'sfx-dish-sink', '', { left: `${f.x}px`, top: `${f.y - 10}px` });
+  sink.innerHTML = '<span class="dd-water"></span><span class="dd-tap"></span>';
+
+  // Dirty stack on one side of the counter, clean rack on the other: a plate moves over each second.
+  const cleanTimes = [2300, 3300, 4300];
+  cleanTimes.forEach((t, i) => {
+    part(stage, 'sfx-dish-dirty', '🍽️', { left: `${f.x - 102}px`, top: `${f.y - 40 - i * 9}px`, '--gone': `${cleanTimes[2 - i]}ms` });
+    part(stage, 'sfx-dish-clean', '🍽️', { left: `${f.x + 102}px`, top: `${f.y - 40 - i * 9}px`, '--at': `${t}ms` });
+    part(stage, 'sfx-dish-shine', '✨', { left: `${f.x + 108}px`, top: `${f.y - 58 - i * 9}px`, '--at': `${t}ms` });
+  });
+  part(stage, 'sfx-dish-fly', '🪰', { left: `${f.x - 102}px`, top: `${f.y - 72}px` });
+
+  for (let i = 0; i < 16; i++) {
+    const size = 7 + Math.round(Math.random() * 9);
+    part(stage, 'sfx-dish-bubble', '', {
+      left: `${f.x - 50 + Math.random() * 100}px`,
+      top: `${f.y - 30}px`,
+      width: `${size}px`,
+      height: `${size}px`,
+      '--drift': `${Math.round(Math.random() * 40 - 20)}px`,
+      animationDelay: `${1500 + i * 210}ms`,
+    });
+  }
+  part(stage, 'sfx-dish-sweat', '💦', { left: `${f.x + w * 0.3}px`, top: `${f.y - PUPPET_H + 18}px` });
+
+  // The rest of the timeline is CSS (delays from the start); only the photo needs a nudge to fade.
+  setTimeout(() => stage.isConnected && washer.classList.add('pp-out'), 4950);
+}
+
+/**
  * The player's icon that is actually on screen. The same player can be rendered in several
  * places (the hidden lobby roster stays in the DOM during a game), so skip any that have no
  * size - otherwise a gag in a game would land at the top-left corner.
@@ -496,6 +579,10 @@ function loadImage(src) {
 }
 
 function prepare(action) {
+  if (action.itemId === 'dishes') {
+    const src = faceOf(action.targetName).src;
+    return src ? Promise.race([loadImage(src), new Promise((resolve) => setTimeout(resolve, 2500))]) : Promise.resolve();
+  }
   if (action.itemId !== 'spank') return Promise.resolve();
   const srcs = [action.fromName, action.targetName].filter(Boolean).map((n) => faceOf(n).src).filter(Boolean);
   for (const set of Object.values(action.bodies || {})) if (set) srcs.push(...Object.values(set));

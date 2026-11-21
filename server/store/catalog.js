@@ -53,6 +53,7 @@ const STORE_ITEMS = [
   { id: 'glove', type: 'consumable', target: 'other', price: 100, icon: '🥊', name: 'Boxing Glove', description: "Punch another player's icon. POW!" },
   { id: 'crown', type: 'consumable', target: 'other', price: 120, icon: '👑', name: 'Crown a Player', description: 'Drop a crown on another player - a nice one.' },
   { id: 'lightning', type: 'consumable', target: 'other', price: 150, icon: '⚡', name: 'Lightning Strike', description: 'Call down a lightning bolt - flash, thunder, and a smoking, charred icon.' },
+  { id: 'dishes', type: 'consumable', target: 'other', price: 200, icon: '🧽', name: 'Go Do the Dishes!', description: 'Order another player to the sink. Their icon grows stick arms and scrubs a pile of dirty plates.' },
   { id: 'spank', type: 'consumable', target: 'other', price: 300, icon: '🍑', name: 'Spanking', description: 'Your own photo marches out of your icon, over to another player, and spanks them. Three times.' },
 ];
 
