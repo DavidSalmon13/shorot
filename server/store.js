@@ -10,8 +10,10 @@
  *
  * The store reuses betting's `wallets` table and its race-safe debit, so it depends on
  * betting being enabled (that's what funds and grants wallets); STORE_ENABLED gates it on
- * top so it can ship dark. Item definitions live in ./store/catalog.js; the database only
- * records ownership (store_inventory) and equipped slots (users.equipped_*). Consumable
+ * top so it can ship dark. What each item does lives in ./store/catalog.js; its name, price
+ * and on/off live in the store_items table (cached in memory there for listing the shop).
+ * The database also records ownership (store_inventory) and equipped slots
+ * (users.equipped_*). Consumable
  * cooldown state is in-memory and room-scoped (room.state.store), exactly like betting's
  * match state - nothing about it is persisted.
  */
@@ -26,6 +28,7 @@ const {
   columnForSlot,
   isValidEquip,
   publicCatalog,
+  loadCatalog,
 } = require('./store/catalog');
 
 const STORE_ENABLED = process.env.STORE_ENABLED === 'true';
@@ -103,22 +106,37 @@ async function getEquipped(userId) {
 }
 
 /**
- * Buys one unit of `itemId` for `userId`, after validating the store is on, the item
- * exists, a permanent item isn't already owned, and the wallet covers the price. The debit
- * is race-safe (balance guard in the WHERE) and the inventory write happens in the same
- * transaction, so a purchase either fully happens (tokens out, item in) or not at all.
+ * Buys one unit of `itemId` for `userId` at `expectedPrice` - the price the player was shown.
+ * The price actually charged is read from store_items inside the purchase transaction (never
+ * from the in-memory listing), and the purchase is refused if it differs from
+ * `expectedPrice`, so nobody is ever charged a price they didn't see. Then: a permanent item
+ * can't already be owned, and the wallet must cover the price. The debit is race-safe
+ * (balance guard in the WHERE) and the inventory write happens in the same transaction, so a
+ * purchase either fully happens (tokens out, item in) or not at all.
+ *
  * Returns `{ ok: true }` or `{ ok: false, error }` - every rejection is a value the client
- * shows, never a thrown exception.
+ * shows, never a thrown exception. A refusal because the listing was stale (price changed,
+ * or the item was taken off sale) also carries `catalogChanged: true`, after the in-memory
+ * listing has been refreshed, so the caller can send the up-to-date shop back.
  */
-async function buyItem(userId, itemId) {
+async function buyItem(userId, itemId, expectedPrice) {
   if (!isEnabled()) return { ok: false, error: 'The store is not available' };
   if (!userId) return { ok: false, error: 'Sign in to buy items' };
-  const item = getItem(itemId);
-  if (!item) return { ok: false, error: 'No such item' };
+  if (!getItem(itemId)) return { ok: false, error: 'No such item' };
   const permanent = isPermanent(itemId);
 
   try {
     await db.transaction(async (client) => {
+      // The real price, locked against a concurrent edit until this purchase commits.
+      const listed = await client.query(
+        'SELECT price, active FROM store_items WHERE id = $1 FOR SHARE',
+        [itemId]
+      );
+      const row = listed.rows[0];
+      if (!row || !row.active) throw new StoreError('unavailable');
+      const price = Number(row.price);
+      if (price !== expectedPrice) throw new StoreError('price');
+
       if (permanent) {
         // Claim ownership first; if the row already existed, it's owned - bail before any
         // debit (throwing rolls back this harmless insert attempt too).
@@ -132,7 +150,7 @@ async function buyItem(userId, itemId) {
       // Race-safe debit: only succeeds if the balance still covers the price.
       const debit = await client.query(
         `UPDATE wallets SET balance = balance - $2 WHERE user_id = $1 AND balance >= $2`,
-        [userId, item.price]
+        [userId, price]
       );
       // Throw (not return) so a failed debit rolls back a permanent item's ownership insert.
       if (debit.rowCount === 0) throw new StoreError('poor');
@@ -148,6 +166,14 @@ async function buyItem(userId, itemId) {
     if (err instanceof StoreError) {
       if (err.code === 'owned') return { ok: false, error: 'You already own that' };
       if (err.code === 'poor') return { ok: false, error: 'Not enough tokens' };
+      // The shop the player saw was out of date: refresh our copy before answering.
+      await loadCatalog();
+      if (err.code === 'price') {
+        return { ok: false, error: 'The price changed - check the new price and try again', catalogChanged: true };
+      }
+      if (err.code === 'unavailable') {
+        return { ok: false, error: "That item isn't for sale right now", catalogChanged: true };
+      }
     }
     console.error('Store purchase failed:', err.message);
     return { ok: false, error: 'Something went wrong buying that' };
@@ -280,6 +306,7 @@ module.exports = {
   recordAction,
   storeState,
   publicCatalog,
+  loadCatalog,
   COOLDOWNS,
   PREMIUM_STICKER_PACK: 'stickerpack.premium',
 };

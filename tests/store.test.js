@@ -104,61 +104,107 @@ test('getEquipped: all-null without querying when disabled', async (t) => {
 
 // --- buyItem ----------------------------------------------------------------------------
 
-test('buyItem: permanent item debits then records ownership, atomically', async (t) => {
+// The store_items row a purchase reads first, inside its transaction.
+const listed = (price, active = true) => ({ rows: [{ price, active }], rowCount: 1 });
+
+test('buyItem: reads the price from store_items, then debits and records ownership, atomically', async (t) => {
   t.mock.method(db, 'isEnabled', () => true);
-  const fake = mockTransaction(t, [{ rowCount: 1 }, { rowCount: 1 }]);
-  const res = await store.buyItem(42, 'frame.pack');
+  const fake = mockTransaction(t, [listed(14400), { rowCount: 1 }, { rowCount: 1 }]);
+  const res = await store.buyItem(42, 'frame.pack', 14400);
   assert.deepEqual(res, { ok: true });
-  assert.equal(fake.calls.length, 2);
-  // Ownership is claimed first (so a re-buy is caught before any debit)...
-  assert.match(fake.calls[0].text, /INSERT INTO store_inventory/);
-  assert.match(fake.calls[0].text, /ON CONFLICT \(user_id, item_id\) DO NOTHING/);
-  // ...then the race-safe debit for the catalog price.
-  assert.match(fake.calls[1].text, /UPDATE wallets SET balance = balance - \$2 WHERE user_id = \$1 AND balance >= \$2/);
-  assert.deepEqual(fake.calls[1].params, [42, catalog.getItem('frame.pack').price]);
+  assert.equal(fake.calls.length, 3);
+  // The real price comes from the table (locked until commit), never the in-memory listing...
+  assert.match(fake.calls[0].text, /SELECT price, active FROM store_items WHERE id = \$1 FOR SHARE/);
+  assert.deepEqual(fake.calls[0].params, ['frame.pack']);
+  // ...then ownership is claimed (so a re-buy is caught before any debit)...
+  assert.match(fake.calls[1].text, /INSERT INTO store_inventory/);
+  assert.match(fake.calls[1].text, /ON CONFLICT \(user_id, item_id\) DO NOTHING/);
+  // ...then the race-safe debit for the table's price.
+  assert.match(fake.calls[2].text, /UPDATE wallets SET balance = balance - \$2 WHERE user_id = \$1 AND balance >= \$2/);
+  assert.deepEqual(fake.calls[2].params, [42, 14400]);
+});
+
+test('buyItem: a price that changed since the player saw it is refused, nothing charged', async (t) => {
+  t.mock.method(db, 'isEnabled', () => true);
+  const fake = mockTransaction(t, [listed(120)]);
+  // The refusal refreshes the in-memory listing so the caller can send the real price back.
+  const refresh = t.mock.method(db, 'query', async () => ({ rows: [] }));
+  t.mock.method(console, 'warn', () => {});
+  const res = await store.buyItem(42, 'glove', 100);
+  assert.deepEqual(res, {
+    ok: false,
+    error: 'The price changed - check the new price and try again',
+    catalogChanged: true,
+  });
+  assert.equal(fake.calls.length, 1); // bailed before any inventory write or debit
+  assert.equal(refresh.mock.callCount(), 1);
+  assert.match(refresh.mock.calls[0].arguments[0], /FROM store_items/);
+});
+
+test('buyItem: a missing expected price counts as a mismatch', async (t) => {
+  t.mock.method(db, 'isEnabled', () => true);
+  const fake = mockTransaction(t, [listed(100)]);
+  t.mock.method(db, 'query', async () => ({ rows: [] }));
+  t.mock.method(console, 'warn', () => {});
+  const res = await store.buyItem(42, 'glove');
+  assert.equal(res.ok, false);
+  assert.equal(res.catalogChanged, true);
+  assert.equal(fake.calls.length, 1);
+});
+
+test('buyItem: an item taken off sale (or with no row) is refused, nothing charged', async (t) => {
+  t.mock.method(db, 'isEnabled', () => true);
+  t.mock.method(db, 'query', async () => ({ rows: [] }));
+  t.mock.method(console, 'warn', () => {});
+  for (const row of [listed(100, false), { rows: [], rowCount: 0 }]) {
+    const fake = mockTransaction(t, [row]);
+    const res = await store.buyItem(42, 'glove', 100);
+    assert.deepEqual(res, { ok: false, error: "That item isn't for sale right now", catalogChanged: true });
+    assert.equal(fake.calls.length, 1);
+  }
 });
 
 test('buyItem: permanent item already owned is refused, nothing charged', async (t) => {
   t.mock.method(db, 'isEnabled', () => true);
-  const fake = mockTransaction(t, [{ rowCount: 0 }]); // INSERT hits the conflict
-  const res = await store.buyItem(42, 'frame.pack');
+  const fake = mockTransaction(t, [listed(14400), { rowCount: 0 }]); // INSERT hits the conflict
+  const res = await store.buyItem(42, 'frame.pack', 14400);
   assert.deepEqual(res, { ok: false, error: 'You already own that' });
-  assert.equal(fake.calls.length, 1); // bailed before the debit
-  assert.match(fake.calls[0].text, /INSERT INTO store_inventory/);
+  assert.equal(fake.calls.length, 2); // bailed before the debit
+  assert.match(fake.calls[1].text, /INSERT INTO store_inventory/);
 });
 
 test('buyItem: too expensive is refused (debit matches no row)', async (t) => {
   t.mock.method(db, 'isEnabled', () => true);
-  const fake = mockTransaction(t, [{ rowCount: 1 }, { rowCount: 0 }]); // insert ok, debit fails
-  const res = await store.buyItem(42, 'frame.pack');
+  const fake = mockTransaction(t, [listed(14400), { rowCount: 1 }, { rowCount: 0 }]); // insert ok, debit fails
+  const res = await store.buyItem(42, 'frame.pack', 14400);
   assert.deepEqual(res, { ok: false, error: 'Not enough tokens' });
-  assert.equal(fake.calls.length, 2);
+  assert.equal(fake.calls.length, 3);
 });
 
 test('buyItem: consumable debits then increments the charge count', async (t) => {
   t.mock.method(db, 'isEnabled', () => true);
-  const fake = mockTransaction(t, [{ rowCount: 1 }, { rowCount: 1 }]);
-  const res = await store.buyItem(42, 'glove');
+  const fake = mockTransaction(t, [listed(100), { rowCount: 1 }, { rowCount: 1 }]);
+  const res = await store.buyItem(42, 'glove', 100);
   assert.deepEqual(res, { ok: true });
-  assert.equal(fake.calls.length, 2);
-  assert.match(fake.calls[0].text, /UPDATE wallets SET balance = balance - \$2/);
-  assert.deepEqual(fake.calls[0].params, [42, catalog.getItem('glove').price]);
-  assert.match(fake.calls[1].text, /INSERT INTO store_inventory/);
-  assert.match(fake.calls[1].text, /DO UPDATE SET quantity = store_inventory\.quantity \+ 1/);
+  assert.equal(fake.calls.length, 3);
+  assert.match(fake.calls[1].text, /UPDATE wallets SET balance = balance - \$2/);
+  assert.deepEqual(fake.calls[1].params, [42, 100]);
+  assert.match(fake.calls[2].text, /INSERT INTO store_inventory/);
+  assert.match(fake.calls[2].text, /DO UPDATE SET quantity = store_inventory\.quantity \+ 1/);
 });
 
 test('buyItem: too-poor consumable is refused before any inventory write', async (t) => {
   t.mock.method(db, 'isEnabled', () => true);
-  const fake = mockTransaction(t, [{ rowCount: 0 }]); // debit fails
-  const res = await store.buyItem(42, 'glove');
+  const fake = mockTransaction(t, [listed(100), { rowCount: 0 }]); // debit fails
+  const res = await store.buyItem(42, 'glove', 100);
   assert.deepEqual(res, { ok: false, error: 'Not enough tokens' });
-  assert.equal(fake.calls.length, 1);
+  assert.equal(fake.calls.length, 2);
 });
 
-test('buyItem: unknown item is refused without touching the database', async (t) => {
+test('buyItem: an id the app has no code for is refused without touching the database', async (t) => {
   t.mock.method(db, 'isEnabled', () => true);
   const fake = mockTransaction(t);
-  const res = await store.buyItem(42, 'no.such.item');
+  const res = await store.buyItem(42, 'no.such.item', 10);
   assert.deepEqual(res, { ok: false, error: 'No such item' });
   assert.equal(fake.calls.length, 0);
 });
@@ -169,7 +215,7 @@ test('buyItem: no-op refusal when the store is disabled', async (t) => {
   t.mock.method(db, 'transaction', async () => {
     transacted = true;
   });
-  const res = await store.buyItem(42, 'frame.pack');
+  const res = await store.buyItem(42, 'frame.pack', 14400);
   assert.deepEqual(res, { ok: false, error: 'The store is not available' });
   assert.equal(transacted, false);
 });
@@ -179,8 +225,74 @@ test('buyItem: a failed transaction is swallowed into an error value, never thro
   t.mock.method(db, 'transaction', async () => {
     throw new Error('connection reset');
   });
-  const res = await store.buyItem(42, 'frame.pack');
+  const res = await store.buyItem(42, 'frame.pack', 14400);
   assert.deepEqual(res, { ok: false, error: 'Something went wrong buying that' });
+});
+
+// --- catalog listing (in-memory copy of store_items) -------------------------------------
+
+const row = (id, price, extra = {}) => ({ id, name: `N ${id}`, description: 'd', icon: 'i', price, active: true, sort_order: 0, ...extra });
+
+test('catalog: listing joins store_items rows with the behaviour in code, in shop order', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  catalog.applyRows([row('glove', 100, { sort_order: 20 }), row('frame.pack', 14400, { sort_order: 10 })]);
+  const items = catalog.publicCatalog();
+  assert.deepEqual(items.map((i) => i.id), ['frame.pack', 'glove']);
+  const glove = items[1];
+  assert.equal(glove.price, 100);
+  assert.equal(glove.name, 'N glove');
+  assert.equal(glove.type, 'consumable'); // from code
+  assert.equal(glove.target, 'other'); // from code
+  assert.equal(glove.onSale, true);
+  assert.deepEqual(items[0].variants, catalog.EQUIP_SLOTS.frame.variants);
+});
+
+test('catalog: a row with no code behind it is hidden; code with no row is not sold; both logged', (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  catalog.applyRows([row('glove', 100), row('mystery.box', 5)]);
+  assert.deepEqual(catalog.publicCatalog().map((i) => i.id), ['glove']);
+  assert.equal(catalog.getItem('mystery.box'), null);
+  assert.equal(warn.mock.callCount(), 1);
+  assert.match(warn.mock.calls[0].arguments[0], /mystery\.box/);
+  assert.match(warn.mock.calls[0].arguments[0], /frame\.pack/);
+  // The same mismatch on the next refresh isn't logged again.
+  catalog.applyRows([row('glove', 100), row('mystery.box', 5)]);
+  assert.equal(warn.mock.callCount(), 1);
+});
+
+test('catalog: an item off sale is listed only for players who own it', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  catalog.applyRows([row('glove', 100, { active: false }), row('pie', 90)]);
+  assert.deepEqual(catalog.publicCatalog().map((i) => i.id), ['pie']);
+  const mine = catalog.publicCatalog(['glove']);
+  assert.deepEqual(mine.map((i) => i.id), ['glove', 'pie']);
+  assert.equal(mine[0].onSale, false);
+});
+
+test('catalog: owned items stay usable before the listing ever loads', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  catalog.applyRows([]);
+  const glove = catalog.getItem('glove');
+  assert.equal(glove.type, 'consumable');
+  assert.equal(glove.name, 'glove'); // falls back to the id until the listing loads
+});
+
+test('catalog: loadCatalog keeps the previous listing when the read fails', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  t.mock.method(console, 'error', () => {});
+  t.mock.method(db, 'isEnabled', () => true);
+  catalog.applyRows([row('glove', 100)]);
+  t.mock.method(db, 'query', async () => {
+    throw new Error('connection reset');
+  });
+  assert.equal(await catalog.loadCatalog(), false);
+  assert.equal(catalog.getItem('glove').price, 100);
+});
+
+test('catalog: the seed migration lists every item the code implements, once', () => {
+  const sql = require('fs').readFileSync(require('path').join(__dirname, '..', 'migrations', '009_store_items.sql'), 'utf8');
+  const seeded = [...sql.matchAll(/^\s+\('([^']+)',/gm)].map((m) => m[1]);
+  assert.deepEqual([...seeded].sort(), catalog.ITEM_BEHAVIOUR.map((b) => b.id).sort());
 });
 
 // --- equip ------------------------------------------------------------------------------

@@ -36,6 +36,7 @@ const db = require('./server/db');
 const accounts = require('./server/accounts');
 const betting = require('./server/betting');
 const store = require('./server/store');
+const { CATALOG_REFRESH_MS } = require('./server/store/catalog');
 const admin = require('./server/admin');
 const suggestions = require('./server/suggestions');
 const { logActivity } = require('./server/activity');
@@ -222,7 +223,7 @@ const ctx = {
     isEnabled: () => store.isEnabled(),
     getInventory: (userId) => store.getInventory(userId),
     getEquipped: (userId) => store.getEquipped(userId),
-    buyItem: (userId, itemId) => store.buyItem(userId, itemId),
+    buyItem: (userId, itemId, expectedPrice) => store.buyItem(userId, itemId, expectedPrice),
     equip: (userId, slot, value) => store.equip(userId, slot, value),
     consume: (userId, itemId) => store.consume(userId, itemId),
     canAct: (room, opts) => store.canAct(room, opts),
@@ -251,6 +252,12 @@ db.initDb().then(() => {
   // match state that isn't persisted - it's dangling and would otherwise be swept into the
   // next match in its room. Expire them all once, up front (no-op when betting is off).
   betting.expireDanglingBets();
+  // The shop's in-memory copy of store_items: loaded now, then re-read every few minutes as
+  // a safety net for prices edited straight in SQL (purchases always read the table itself).
+  if (store.isEnabled()) {
+    store.loadCatalog();
+    setInterval(() => store.loadCatalog(), CATALOG_REFRESH_MS).unref();
+  }
 });
 setInterval(saveRoomsToDisk, SAVE_INTERVAL_MS);
 // Drops players who closed the app long ago (and their scoreboard points) - see lobby.js.

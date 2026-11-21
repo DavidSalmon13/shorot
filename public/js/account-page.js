@@ -232,7 +232,7 @@ function buyButton(item, label) {
   btn.className = 'store-buy-btn';
   btn.textContent = `${label || 'Buy'} · 🪙 ${item.price}`;
   btn.disabled = storeData.balance < item.price;
-  btn.addEventListener('click', () => buyStoreItem(item.id));
+  btn.addEventListener('click', () => buyStoreItem(item));
   return btn;
 }
 
@@ -299,9 +299,12 @@ function renderStore() {
       qty.className = 'store-card-qty';
       const n = inventoryCount(item.id);
       qty.textContent = n ? `You have ${n}` : 'None yet';
-      card.append(qty, buyButton(item, owned ? 'Buy more' : 'Buy'));
+      card.append(qty);
+      // An item taken off sale only still shows because you own it: use it, can't rebuy it.
+      if (item.onSale !== false) card.append(buyButton(item, owned ? 'Buy more' : 'Buy'));
+      else card.append(offSaleTag());
     } else if (!owned) {
-      card.append(buyButton(item));
+      if (item.onSale !== false) card.append(buyButton(item));
     } else {
       const tag = document.createElement('div');
       tag.className = 'store-owned-tag';
@@ -319,19 +322,42 @@ function renderStore() {
   }
 }
 
-async function buyStoreItem(itemId) {
+function offSaleTag() {
+  const tag = document.createElement('div');
+  tag.className = 'store-card-qty';
+  tag.textContent = 'No longer sold';
+  return tag;
+}
+
+function setBalance(balance) {
+  storeData.balance = balance;
+  walletEl.textContent = `🪙 ${balance} token${balance === 1 ? '' : 's'}`;
+}
+
+// Sends the price this page showed along with the item. The server charges the price in
+// its database, and refuses if that's not the one shown here - replying with the current
+// shop (`catalogChanged`), which replaces ours so the player sees the real price first.
+async function buyStoreItem(item) {
+  const itemId = item.id;
   storeError('');
   try {
     const res = await fetch('/api/store/buy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId }),
+      body: JSON.stringify({ itemId, price: item.price }),
     });
     const data = await res.json();
-    if (!data.ok) return storeError(data.error || 'Could not buy that');
+    if (!data.ok) {
+      if (data.catalogChanged && data.items) {
+        storeData.items = data.items;
+        if (data.inventory) storeData.inventory = data.inventory;
+        if (typeof data.balance === 'number') setBalance(data.balance);
+        renderStore();
+      }
+      return storeError(data.error || 'Could not buy that');
+    }
     storeData.inventory = data.inventory;
-    storeData.balance = data.balance;
-    walletEl.textContent = `🪙 ${data.balance} token${data.balance === 1 ? '' : 's'}`;
+    setBalance(data.balance);
     renderStore();
     // The Premium Sticker Pack frees every badge-locked sticker (server does the same) -
     // reflect it in the Profile tab's sticker grid right away.

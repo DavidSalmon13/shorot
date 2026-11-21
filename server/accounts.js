@@ -637,7 +637,8 @@ function registerAccountRoutes(app) {
         store.getEquipped(user.id),
         betting.getBalance(user.id),
       ]);
-      res.json({ enabled: true, signedIn: true, items: store.publicCatalog(), inventory, equipped, balance });
+      const items = store.publicCatalog(inventory.map((r) => r.itemId));
+      res.json({ enabled: true, signedIn: true, items, inventory, equipped, balance });
     } catch (err) {
       console.error('GET /api/store failed:', err.message);
       res.status(500).json({ ok: false, error: 'Could not load the store' });
@@ -651,8 +652,18 @@ function registerAccountRoutes(app) {
       if (!user) return res.status(401).json({ ok: false, error: 'Not signed in' });
       const itemId = req.body && req.body.itemId;
       if (typeof itemId !== 'string') return res.status(400).json({ ok: false, error: 'Invalid item' });
-      const result = await store.buyItem(user.id, itemId);
-      if (!result.ok) return res.status(400).json(result);
+      // The price the player was shown. A missing/garbled one is just a mismatch: buyItem
+      // refuses it and the client gets the current shop back to show the real price.
+      const price = req.body.price;
+      const expectedPrice = Number.isSafeInteger(price) ? price : null;
+      const result = await store.buyItem(user.id, itemId, expectedPrice);
+      if (!result.ok) {
+        if (!result.catalogChanged) return res.status(400).json(result);
+        // The shop the player saw was stale: send the fresh one so it can re-render.
+        const [inventory, balance] = await Promise.all([store.getInventory(user.id), betting.getBalance(user.id)]);
+        const items = store.publicCatalog(inventory.map((r) => r.itemId));
+        return res.status(409).json({ ...result, items, inventory, balance });
+      }
       // A Spanking shows the buyer's realistic body: start drawing it now (cached per sticker).
       if (itemId === 'spank') bodies.ensureBodies(user.sticker);
       const [inventory, balance] = await Promise.all([store.getInventory(user.id), betting.getBalance(user.id)]);

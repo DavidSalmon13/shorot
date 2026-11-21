@@ -33,7 +33,7 @@ gameplay, fail-open, flag-gated.
 |---|---|---|
 | **D1** | **Enablement = `STORE_ENABLED === 'true' && betting.isEnabled()`.** New env flag, AND-ed with the betting layer (which itself requires accounts). | The wallet, balance and grants live in `betting.js`; the Store has nothing to spend without them. A separate flag lets the Store ship dark and be flipped on independently of betting. |
 | **D2** | **Equip storage = nullable `equipped_*` columns on `users`** (not a `user_equipped` table). | Identical in shape/lifecycle to the existing `users.sticker` column: one equipped choice per slot, part of identity, already read on every auth lookup (`userFromRequest`) and surfaced via `publicUser`/`selfUser`. A fixed, small slot set makes columns simpler (no join, rides the existing user SELECT). A table is more extensible but buys nothing today. |
-| **D3** | **Catalog in code** (`server/store/catalog.js`), DB tracks ownership only. | Mirrors `server/badges.js`: a flat array keyed by stable, namespaced string ids (never renamed once shipped). Adding/repricing an item is a code edit, no migration. |
+| **D3** | **Listing in the DB, behaviour in code.** *(Revised; v1 kept the whole catalog in code.)* The `store_items` table (`migrations/009_store_items.sql`) holds each item's name, description, icon, price, `active` flag and `sort_order`. `server/store/catalog.js` keeps only what each id *does* (type, slot/variants, target), which gates what can ever be sold. The server caches `store_items` in memory **only to list the shop**: the cache is loaded on boot, re-read every 5 min (`CATALOG_REFRESH_MS`), and refreshed on any stale purchase. `buyItem` re-reads the price from the table inside its transaction (`FOR SHARE`). The client sends the price it showed, and a mismatch is refused (409, `catalogChanged`) with the fresh shop attached, so nobody is charged a price they didn't see. A row with no code behind it is hidden and logged; code with no row isn't sold. `active = false` stops sales, while owners keep the item and it stays listed for them with `onSale: false`. | Prices and on/off can change without a deploy, but every new item still needs code, so code stays the gate. Charging from the table rather than the cache means a stale cache can only ever show an old price, never charge one. |
 | **D4** | **Cooldowns enforced server-side, config in `catalog.js`, state in `room.state.store` (in-memory, ephemeral).** `ACTION_COOLDOWN_MS=10000`, `TARGET_THROTTLE_MS=30000` (longer than the per-actor brake so the anti-focus rule actually bites), `TARGET_INCOMING_MS=3000`. | Charges alone don't stop spam; cooldowns do. Room-scoped in-memory state mirrors `room.state.betting` — nothing persisted, clears with the room. |
 | **D5** | **Punch-back**: `PUNCHBACK_WINDOW_MS=5000` free single retaliation at the attacker; bypasses per-actor cooldown, respects per-target incoming throttle. | "Free" (0 charges) is the cleanest reading of the brief's "discounted charge" without fractional charges. Kept tightly scoped (one shot, attacker only) so it can't chain. |
 | **D6** | **The 3 "effect" cosmetics ship lightweight**: Winner's Podium, Grand Entrance, Table Skin as CSS/particle effects reusing `reactions.js` + the Afterglow theme layer. | Real per-game win/entrance hooks and a full per-game board theme are a large subproject; the catalog stays at 13 with v1-grade effects, richer ones deferred. |
@@ -72,7 +72,8 @@ gameplay, fail-open, flag-gated.
 | File | Role | New? |
 |---|---|---|
 | `migrations/007_store.sql` | `store_inventory` table + `users.equipped_*` columns | new |
-| `server/store/catalog.js` | `STORE_ITEMS` catalog, prices, cooldown config, `publicItem`, helpers | new |
+| `migrations/009_store_items.sql` | `store_items` table (name, price, active, order), seeded with the v1 catalog | new |
+| `server/store/catalog.js` | Item behaviour by id, in-memory `store_items` listing (`loadCatalog`/`applyRows`/`publicCatalog`), cooldown config, helpers | new |
 | `server/store.js` | Economy module: `isEnabled`, `getInventory`, `getEquipped`, `buyItem`, `equip`, `consume`, cooldown checks | new |
 | `server.js` | `ctx.store` wrapper block (mirrors `ctx.betting`); nothing else moves | edit |
 | `server/accounts.js` | `/api/store` routes; extend `userFromRequest` SELECT + `publicUser`/`selfUser` with equipped cosmetics | edit |
@@ -227,7 +228,7 @@ can still be a `targetName` and sees broadcast animations like anyone else.
 |---|---|
 | `STORE_ENABLED` | `'true'` turns the Store on (on top of `BETTING_ENABLED` + accounts). Anything else ⇒ Store off everywhere, app unchanged. |
 
-No other config; prices and cooldowns are code constants in `catalog.js` (D3/D4).
+No other config. Prices live in the `store_items` table (D3), and cooldowns are code constants in `catalog.js` (D4).
 
 ---
 

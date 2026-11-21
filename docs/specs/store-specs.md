@@ -38,9 +38,15 @@ Design, data model and rollout: [`docs/plans/store-implementation-plan.md`](../p
 | `MAX_QUEUED_GAGS` | 4 | At most 4 gags playing + waiting on one player; more are refused until the line shortens |
 | `PUNCHBACK_WINDOW_MS` | 5000 | After being hit, the target may retaliate once, free, within 5s (see "Punch-back") |
 
-Prices live in code (`server/store/catalog.js`), on a ladder from cheap taunts to premium cosmetics —
-see "The catalog." Prices, cooldowns and the item list are all live-service-style numbers, expected to
-be tuned after watching real play.
+Prices, names and whether an item is on sale live in the database (the `store_items` table), so they
+can be tuned without a deploy. What each item *does* lives in code (`server/store/catalog.js`). Prices
+run on a ladder from cheap taunts to premium cosmetics (see "The catalog"), and like the cooldowns
+they're live-service numbers, expected to be tuned after watching real play.
+
+**Paying the price you saw:** the shop sends the price it showed with every purchase. If the price
+in the database has changed since then, the purchase is refused, nothing is charged, and the shop
+re-renders with the current price so the player can decide again. An item taken off sale can't be
+bought, but players who own it keep it, and it still shows in their Store marked "No longer sold".
 
 ## The two item types
 
@@ -64,7 +70,7 @@ always a reason to earn more tokens. Running out just means buying more; there's
 
 ## The catalog
 
-17 items (13 in v1, plus the Water Balloon, Pie, Lightning and Spanking gags). Ids are stable and namespaced; prices are in tokens.
+17 items (13 in v1, plus the Water Balloon, Pie, Lightning and Spanking gags). Ids are stable and namespaced; prices are in tokens. These are the launch prices seeded by `migrations/009_store_items.sql`; the live values are whatever `store_items` holds.
 
 ### Permanent cosmetics (7)
 
