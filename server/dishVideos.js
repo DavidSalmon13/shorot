@@ -22,7 +22,7 @@ const { stickerPath, isValidSticker } = require('./stickers');
 const VIDEOS_DIR = path.join(DATA_DIR, 'dishvideos');
 // Bump to regenerate every video (e.g. after changing the prompt or model).
 const VERSION = 1;
-const RETRY_MS = 60 * 60 * 1000;
+const RETRY_MS = 10 * 60 * 1000; // wait after a failure before trying a sticker again
 let pollMs = 5000; // how often to ask fal whether a job is done (tests shorten it)
 const TIMEOUT_MS = 10 * 60 * 1000;
 const INPUT_TYPES = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
@@ -83,17 +83,37 @@ function videoFor(sticker) {
   return `/dishvideos/${encodeURIComponent(path.basename(dirFor(sticker)))}/${m.file}`;
 }
 
-/** Queues generation for any of these stickers that has no ready video yet. Never throws. */
+/**
+ * Queues generation for any of these stickers that has no ready video yet, and logs one line per
+ * sticker saying what happened (so a Dishes gag that didn't start a video is never silent in the
+ * server log). Never throws.
+ */
 function ensureVideo(...stickers) {
-  if (!enabled()) return;
   for (const sticker of stickers) {
-    if (!sticker || !videoable(sticker) || queued.has(sticker) || videoFor(sticker)) continue;
-    const m = readManifest(sticker);
-    if (m && m.version === VERSION && m.status === 'failed' && Date.now() - m.at < RETRY_MS) continue;
+    const why = skipReason(sticker);
+    if (why) {
+      console.log(`[dishvideos] ${sticker || '(no sticker)'}: no new video - ${why}`);
+      continue;
+    }
     queued.add(sticker);
     queue.push(sticker);
   }
   pump();
+}
+
+/** Why a sticker won't be queued right now, or null if it should be. */
+function skipReason(sticker) {
+  if (!enabled()) return 'FAL_KEY is not set';
+  if (!sticker) return 'the player has no sticker';
+  if (!videoable(sticker)) return 'not a photo sticker (emoji, GIF or unknown)';
+  if (videoFor(sticker)) return 'already has a video (playing it)';
+  if (queued.has(sticker)) return 'already being made';
+  const m = readManifest(sticker);
+  if (m && m.version === VERSION && m.status === 'failed' && Date.now() - m.at < RETRY_MS) {
+    const mins = Math.ceil((RETRY_MS - (Date.now() - m.at)) / 60000);
+    return `the last try failed (${m.error || 'unknown error'}); retrying in ${mins} min`;
+  }
+  return null;
 }
 
 async function pump() {
