@@ -1,7 +1,7 @@
 'use strict';
 
 const { shuffle } = require('../lib/shuffle');
-const { chatCompletionJson } = require('../lib/openai');
+const { generateWordGrid: generateSharedWordGrid } = require('../lib/wordGrid');
 
 const CN_MIN_PLAYERS = 4;
 const CN_MIN_TEAM_SIZE = 2;
@@ -130,43 +130,13 @@ function resolveBankPickCount(room) {
   return room.state.codenames.bankPickCount == null ? CN_BANK_PICK_COUNT : room.state.codenames.bankPickCount;
 }
 
-async function generateWordGrid(room, count, avoidExtra = []) {
-  const avoid = [...room.state.codenames.usedWords.slice(-100), ...avoidExtra];
-  const languageInstruction =
-    room.wordLanguage === 'hebrew' ? ' Write every word in Hebrew.' : '';
-  const theme = (room.wordTheme || '').trim();
-  const themeInstruction = theme
-    ? ` All words must be related or loosely related to this theme: "${theme}". Mix directly obvious words ` +
-      `with more loosely-associated ones - not every word should be the single most obvious item for the theme.`
-    : ` Covering a broad mix of categories (objects, animals, food, places, jobs, nature, sports, tools, ` +
-      `clothing, etc).`;
-  const prompt =
-    `Generate exactly ${count} common, family-friendly, single-word nouns suitable for a word-guessing ` +
-    `party game grid. Each must be ONE word (no phrases, no proper nouns), instantly recognizable to most ` +
-    `adults.${themeInstruction} All ${count} words must be different from each other.${languageInstruction}` +
-    (avoid.length
-      ? ` These words were used recently - avoid all of them: ${avoid.join(', ')}.`
-      : '') +
-    ` Respond with ONLY compact JSON in the form {"words": ["...", ...]} with exactly ${count} items.`;
-
-  const parsed = await chatCompletionJson(prompt, { temperature: 1.1 });
-  const rawWords = Array.isArray(parsed.words) ? parsed.words : [];
-  const words = rawWords.map((w) => String(w || '').trim()).filter(Boolean);
-
-  const seen = new Set();
-  const unique = [];
-  for (const w of words) {
-    const key = w.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(w);
-  }
-
-  if (unique.length < count) {
-    throw new Error('Incomplete word grid from OpenAI');
-  }
-
-  return unique.slice(0, count);
+function generateWordGrid(room, count, avoidExtra = []) {
+  return generateSharedWordGrid({
+    count,
+    avoid: [...room.state.codenames.usedWords.slice(-100), ...avoidExtra],
+    language: room.wordLanguage,
+    theme: room.wordTheme,
+  });
 }
 
 function buildBoard(words, startingTeam) {

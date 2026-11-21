@@ -7,6 +7,7 @@ import { capitalize, formatCnTimer } from '../shared/format.js';
 import { renderScoreboard } from '../shared/scoreboard.js';
 import { selectChip } from '../shared/dom.js';
 import { confirmDialog } from '../shared/confirmDialog.js';
+import { sfx, haptics } from '../fx.js';
 
 const redList = document.getElementById('red-list');
 const blueList = document.getElementById('blue-list');
@@ -60,6 +61,28 @@ let cnTimerSeconds = 0;
 let cnTurnEndsAt = null;
 let cnTimerTickHandle = null;
 let bankPickSliderDragging = false;
+let wasMyTurn = null; // previous "my team is guessing" state, to chime only on the flip to true
+let announcedGameover = false; // so a reconnect in the gameover screen doesn't replay the sting
+
+// A card was just turned over: play a cue from this viewer's point of view. Assassin is
+// fatal for everyone; otherwise it's happy when the card belongs to my team and a soft miss
+// when it went to the other team or a bystander. Only the single most dramatic cue plays.
+function playRevealCues(cells) {
+  const colors = cells.map((c) => c.color);
+  if (colors.includes('assassin')) {
+    sfx.assassin();
+    haptics.warn();
+  } else if (myTeam && colors.includes(myTeam)) {
+    sfx.correct();
+    haptics.success();
+  } else if (colors.some((c) => c === 'red' || c === 'blue')) {
+    sfx.wrong();
+    haptics.warn();
+  } else {
+    sfx.reveal();
+    haptics.tap();
+  }
+}
 
 function tickCnTimer() {
   if (!cnTurnEndsAt) return;
@@ -192,10 +215,11 @@ function renderTug(found, total) {
 // container -> words revealed as of its last render, so a re-render only animates new reveals.
 const lastRevealed = new WeakMap();
 
-function renderGrid(container, board, interactive, onClick, { dimRevealed = false } = {}) {
+function renderGrid(container, board, interactive, onClick, { dimRevealed = false, onReveal = null } = {}) {
   container.innerHTML = '';
   const prev = lastRevealed.get(container);
   lastRevealed.set(container, new Set(board.filter((c) => c.revealed).map((c) => c.word)));
+  const newlyRevealed = [];
   board.forEach((cell, i) => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -203,7 +227,10 @@ function renderGrid(container, board, interactive, onClick, { dimRevealed = fals
     if (cell.revealed) {
       btn.classList.add('revealed', `cn-${cell.color}`);
       if (dimRevealed) btn.classList.add('cn-done');
-      if (prev && !prev.has(cell.word)) btn.classList.add('just-revealed');
+      if (prev && !prev.has(cell.word)) {
+        btn.classList.add('just-revealed');
+        newlyRevealed.push(cell);
+      }
     } else if (cell.color) {
       btn.classList.add('cn-leader-hint', `cn-${cell.color}`);
     }
@@ -232,6 +259,7 @@ function renderGrid(container, board, interactive, onClick, { dimRevealed = fals
     }
     container.appendChild(btn);
   });
+  if (onReveal && newlyRevealed.length) onReveal(newlyRevealed);
 }
 
 function applyCodenamesState(data) {
@@ -243,6 +271,17 @@ function applyCodenamesState(data) {
 
   if (data.phase === 'gameover') {
     stopCnTimerTick();
+    wasMyTurn = null;
+    if (!announcedGameover) {
+      announcedGameover = true;
+      if (data.winner === myTeam) {
+        sfx.win();
+        haptics.success();
+      } else {
+        sfx.lose();
+        haptics.warn();
+      }
+    }
     cnTimerDisplay.classList.add('hidden');
     cnStartTimerBtn.classList.add('hidden');
     cnWinnerTitle.textContent = `${capitalize(data.winner)} Wins!`;
@@ -254,8 +293,16 @@ function applyCodenamesState(data) {
     cnPlayAgainWaiting.classList.toggle('hidden', isLeader);
     cnRestartBtn.classList.add('hidden');
   } else {
+    announcedGameover = false;
     cnRestartBtn.classList.toggle('hidden', !ctx.getIsHost());
     const mine = data.activeTeam === myTeam;
+    // Chime only on the turn flipping to us (not on every state push while it's our turn,
+    // and not on the first render, when wasMyTurn is still null).
+    if (mine && wasMyTurn === false) {
+      sfx.turn();
+      haptics.success();
+    }
+    wasMyTurn = mine;
     const teamLabel = data.activeTeam.toUpperCase();
     cnTurnLabel.textContent = mine ? `${teamLabel} GUESSING · YOU` : `${teamLabel} GUESSING`;
     cnBoard.classList.toggle('cn-board-blue', data.activeTeam === 'blue');
@@ -280,6 +327,7 @@ function applyCodenamesState(data) {
     const interactive = mine && !isLeader && !waitingToStart;
     renderGrid(cnGrid, data.board, interactive, (i) => ctx.socket.emit('guessWord', i, () => {}), {
       dimRevealed: isLeader,
+      onReveal: playRevealCues,
     });
     cnEndTurnBtn.classList.toggle('hidden', !interactive);
     cnLeaderNote.classList.toggle('hidden', !isLeader);
@@ -451,6 +499,8 @@ export const Codenames = {
     cnTimerSeconds = 0;
     cnTurnEndsAt = null;
     bankPickSliderDragging = false;
+    wasMyTurn = null;
+    announcedGameover = false;
     cnTeamError.textContent = '';
     cnNameBankError.textContent = '';
     cnRestartError.textContent = '';

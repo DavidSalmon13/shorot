@@ -215,12 +215,13 @@
     <!-- Imposter -->
 
     <section id="voting-screen" class="screen hidden">
-      <h1>Pick a hint difficulty</h1>
-      <p class="muted">Most votes wins. A tie goes to the easier level.</p>
+      <h1>Pick a round</h1>
+      <p class="muted">A hint difficulty, or Board mode. Most votes wins; a tie goes to the easier choice.</p>
       <div class="level-choices">
         <button class="level-btn" data-level="easy">Easy</button>
         <button class="level-btn" data-level="medium">Medium</button>
         <button class="level-btn" data-level="hard">Hard</button>
+        <button class="level-btn" data-level="board">Board <span class="level-btn-note">5 secret cards, no hint</span></button>
       </div>
       <p id="vote-count" class="muted">0 of 0 voted</p>
       <p id="voting-error" class="error"></p>
@@ -230,8 +231,11 @@
     <section id="game-screen" class="screen hidden">
       <p id="level-label" class="muted"></p>
       <div id="role-panel" class="role-panel"></div>
+      <!-- Board mode: the round's 5x5 word board, crew's 5 cards highlighted (js/games/imposter.js). -->
+      <div id="imposter-board" class="cn-grid imp-board hidden"></div>
       <div id="imposter-host-actions" class="btn-row">
         <button id="end-round-btn" class="hidden" type="button">End Round</button>
+        <button id="vote-imposter-btn" class="hidden" type="button">Vote on Imposter</button>
         <button id="play-again-btn" class="secondary hidden" type="button">Back to Lobby</button>
       </div>
       <p id="play-again-waiting" class="muted hidden">Waiting for the host to end the round&hellip;</p>
@@ -247,6 +251,15 @@
       <p id="report-waiting" class="muted hidden">Answer submitted. Waiting for others&hellip;</p>
       <p id="report-count" class="muted">0 of 0 answered</p>
       <p id="report-error" class="error"></p>
+    </section>
+
+    <!-- Board mode's end of round: everyone votes for who they think the imposter is. -->
+    <section id="imposter-accuse-screen" class="screen hidden">
+      <h1>Who's the imposter?</h1>
+      <p class="muted">Most votes is caught. A tie catches nobody. You can change your vote until everyone's in.</p>
+      <div id="accuse-list" class="level-choices"></div>
+      <p id="accuse-count" class="muted">0 of 0 voted</p>
+      <p id="accuse-error" class="error"></p>
     </section>
 
     <section id="imposter-results-screen" class="screen hidden">

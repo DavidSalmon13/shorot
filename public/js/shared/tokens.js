@@ -1,5 +1,5 @@
 /**
- * The token balance pill under the logo (#token-pill in index.html), shown on every
+ * The token balance pill at the header's right edge (#token-pill in index.html), shown on every
  * screen for a signed-in player while betting is on. Fed from two places: /api/me
  * (shared/account.js's refreshCard - startup, back to lobby, a bet resolving) and the
  * live betting view on Bluff's state broadcasts. `null` = no wallet to show (guest, or
