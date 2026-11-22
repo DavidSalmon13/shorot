@@ -1,7 +1,7 @@
 // App-shell cache for installability + faster repeat loads. Deliberately does
 // NOT cache /socket.io/ traffic or API responses — this app is real-time and
 // server-state-driven, so stale game data would be worse than no cache.
-const CACHE_NAME = 'shorot-shell-v5';
+const CACHE_NAME = 'shorot-shell-v6';
 const SHELL_URLS = ['/', '/index.html', '/style.css', '/theme-afterglow.css', '/js/main.js', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -27,6 +27,11 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/socket.io/')) return;
   // Per-player account data must never be served stale from the cache.
   if (url.pathname === '/api/me' || url.pathname.startsWith('/api/auth/')) return;
+  // Video/audio go straight to the network: players load them in byte ranges (206 responses),
+  // which can't be cached and which iPhone Safari fails to play when relayed by a service
+  // worker - the gags' AI clips (/dishvideos, /spankvideos) fell back to the drawn version.
+  if (request.headers.has('range') || request.destination === 'video' || request.destination === 'audio') return;
+  if (/^\/(dishvideos|spankvideos)\//.test(url.pathname)) return;
 
   // `no-cache` makes even this network fetch skip any copy the browser's HTTP cache still
   // thinks is fresh (it revalidates with the server instead). Navigations can't take

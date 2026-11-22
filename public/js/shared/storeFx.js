@@ -768,22 +768,45 @@ function loadImage(src) {
   });
 }
 
-// Video URLs that have loaded enough to play through (the Dishes and Spanking AI videos).
+// The Dishes and Spanking AI videos: URLs that are ready to start, and ones that failed to load
+// (those play the drawn version). One that's merely slow is still used - the clip isn't due
+// until a few seconds into the gag (after the walk-up), and starts as soon as it can.
 const loadedVideos = new Set();
+const failedVideos = new Set();
 
 function loadVideo(src) {
   if (loadedVideos.has(src)) return Promise.resolve();
+  failedVideos.delete(src); // a past failure gets another try
+  // iPhone Safari won't buffer a video that isn't in the page and playing, so this one sits
+  // off-screen, muted and inline (allowed to autoplay), and counts as loaded once it has
+  // enough to start ('canplay') - the card's own element then plays it from the browser cache.
   return new Promise((resolve) => {
     const v = document.createElement('video');
     v.muted = true;
+    v.playsInline = true;
+    v.setAttribute('playsinline', '');
     v.preload = 'auto';
-    v.oncanplaythrough = () => {
-      loadedVideos.add(src);
+    v.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-10px;top:-10px';
+    const done = (ok) => {
+      if (ok) loadedVideos.add(src);
+      else failedVideos.add(src);
+      v.pause();
+      v.remove();
       resolve();
     };
-    v.onerror = resolve;
+    v.addEventListener('canplay', () => done(true), { once: true });
+    v.addEventListener('error', () => done(false), { once: true });
+    setTimeout(() => {
+      if (!v.isConnected) return;
+      if (v.readyState >= 2) loadedVideos.add(src);
+      v.pause();
+      v.remove();
+      resolve();
+    }, 2400);
     v.src = src;
-    v.load();
+    document.body.appendChild(v);
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
   });
 }
 
@@ -814,7 +837,7 @@ function usableBodies(bodies) {
  */
 function playNow(layer, { itemId, fromName, targetName, icon, bodies, video }) {
   const gag = GAGS[itemId];
-  const usable = { bodies: usableBodies(bodies), video: video && loadedVideos.has(video) ? video : null };
+  const usable = { bodies: usableBodies(bodies), video: video && !failedVideos.has(video) ? video : null };
   const pick = (v) => (typeof v === 'function' ? v(usable) : v);
   const ms = gag ? pick(gag.ms) : 2000;
   if (gag) {
