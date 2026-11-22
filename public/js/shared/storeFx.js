@@ -82,8 +82,11 @@ const GAGS = {
     ms: (a) => (a.video ? SPANK_T0 + 5600 : 5600),
     avatarClass: null,
     caption: (from, to) => `🍑 ${from} spanked ${to}!`,
-    sound: (a) => sfx.spank({ video: !!a.video }),
-    haptic: (a) => (a.video ? [0, 350, 40, 200, 40, 200, 40, 200, 40] : [0, 2900, 70, 430, 70, 430, 120]),
+    sound: (a) => sfx.spank({ video: !!a.video, hitAt: (SPANK_T0 + SPANK_HIT) / 1000 }),
+    haptic: (a) =>
+      a.video
+        ? [0, 350, 40, 200, 40, 200, 40, 200, 40, SPANK_T0 + SPANK_HIT - 1110, 120]
+        : [0, 2900, 70, 430, 70, 430, 120],
     build: buildSpank,
   },
   dishes: {
@@ -312,6 +315,9 @@ function puppet(stage, className, name, poses, flip) {
  * the target's icon); the walk is a Web Animation, poses are CSS classes on a timeline.
  */
 const SPANK_T0 = 2600; // with an AI video, when the clip pops up, in ms
+// When the cartoon smack lands on the clip, in ms after it starts (the clip itself only shows the
+// jump - fal won't film the hit - so the game draws it; tuned to roughly when they jump).
+const SPANK_HIT = 1200;
 
 function buildSpank(stage, { fromName, targetName, bodies, video }) {
   const walkerPoses = (bodies && bodies.from) || null;
@@ -379,7 +385,18 @@ function buildSpank(stage, { fromName, targetName, bodies, video }) {
       victim.classList.add('pp-out');
     });
     stage.style.setProperty('--t0', `${SPANK_T0 / 1000}s`);
-    playGagVideo(stage, target, video, later, SPANK_T0);
+    const card = playGagVideo(stage, target, video, later, SPANK_T0);
+    // The hit, drawn over the clip: a hand swings in from the side and lands low on the card
+    // (SMACK! + a red handprint) 425ms into its 500ms swing.
+    const hit = { x: card.x, y: card.y + card.h * 0.12 };
+    const hitAt = SPANK_T0 + SPANK_HIT;
+    const swing = part(stage, 'sfx-spank-hand', '✋');
+    swing.style.setProperty('--hx', `${hit.x}px`);
+    swing.style.setProperty('--hy', `${hit.y}px`);
+    swing.style.setProperty('--side', side);
+    later(hitAt - 425, () => swing.classList.add('sfx-spank-hand-once'));
+    part(stage, 'sfx-handprint sfx-handprint-big', '🖐️', { left: `${hit.x}px`, top: `${hit.y}px`, animationDelay: `${hitAt}ms` });
+    part(stage, 'sfx-smack sfx-smack-big', 'SMACK!', { left: `${hit.x + side * 50}px`, top: `${hit.y - 60}px`, animationDelay: `${hitAt}ms` });
     return;
   }
   // A photo has no arm, so a hand swings in for it; a realistic body swings its own.
@@ -625,7 +642,8 @@ function buildDishes(stage, { fromName, targetName, video }) {
 /**
  * A gag's realistic AI video of the target (server/gagVideos.js; the Dishes act 2, the Spanking
  * after the walk-up): a 4:5 card that pops up over a dimmed screen near the target at `t0` ms
- * (the stage's --t0 in CSS) and plays the clip once. It plays with sound unless
+ * (the stage's --t0 in CSS) and plays the clip once. Returns the card's box (stage-relative
+ * center x/y, w, h). It plays with sound unless
  * the app is muted or the phone won't autoplay sound, in which case it plays silently.
  */
 function playGagVideo(stage, target, src, later, t0) {
@@ -645,6 +663,7 @@ function playGagVideo(stage, target, src, later, t0) {
   v.preload = 'auto';
   v.muted = true;
   card.appendChild(v);
+  const box = { x: cx - target.x, y: cy - target.y, w, h };
   later(t0, () => {
     v.currentTime = 0;
     v.muted = isMuted();
@@ -656,6 +675,7 @@ function playGagVideo(stage, target, src, later, t0) {
       });
     }
   });
+  return box;
 }
 
 /**

@@ -6734,6 +6734,15 @@ body.store-picking [data-player] {
   animation: sfx-spank-swing 0.5s ease-in 3 forwards, sfx-spank-hand-fade 1.55s linear forwards;
 }
 
+/* One swing (the AI-video Spanking: the hit drawn over the clip). */
+.sfx-spank-hand.sfx-spank-hand-once {
+  font-size: 64px;
+  animation: sfx-spank-swing 0.5s ease-in 1 forwards, sfx-spank-hand-fade 0.6s linear forwards;
+}
+
+.sfx-handprint.sfx-handprint-big { font-size: 2.4rem; z-index: 2; }
+.sfx-smack.sfx-smack-big { font-size: 1.6rem; z-index: 3; }
+
 @keyframes sfx-spank-swing {
   0% { transform: translate(calc(-50% + var(--side) * 56px), calc(-50% - 70px)) rotate(calc(var(--side) * 50deg)); }
   55% { transform: translate(calc(-50% + var(--side) * 62px), calc(-50% - 82px)) rotate(calc(var(--side) * 60deg)); }

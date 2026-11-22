@@ -13,8 +13,9 @@ const { createGagVideos } = require('./gagVideos');
 module.exports = createGagVideos({
   kind: 'spank',
   dir: 'spankvideos',
-  // v3: opt-in, two-step (frame, then video), speedo at a pool.
-  version: 3,
+  // v3: opt-in, two-step (frame, then video), speedo at a pool. v4: playful reaction (the game
+  // draws the hit over the clip: storeFx.js buildSpank).
+  version: 4,
   frame: {
     prompt:
       'Photorealistic photo of the same person as in the input image, keeping their face exactly the ' +
@@ -25,9 +26,10 @@ module.exports = createGagVideos({
       'hand raised high. Bright daylight, phone photo, comedy.',
   },
   // fal's check refuses any wording where the figure hits (or even lunges at) a real person's
-  // photo, so the clip is the scare and the jump.
+  // photo, so the clip is the scare, the jump and a laugh; the game draws a cartoon smack over it.
   prompt:
-    'Comedy video. The hooded figure behind them leans in close. The person jumps in the air with a ' +
-    'startled yelp, scrambles a step away and glares back at the camera. Keep their face exactly the ' +
-    'same. Slight handheld camera, natural sound.',
+    'Playful comedy video. The hooded figure behind them leans in close. The person jumps in the air ' +
+    'with a startled yelp, gasps in mock outrage with a hand on their chest, then bursts out laughing ' +
+    'and shakes their head at the camera. Keep their face exactly the same. Slight handheld camera, ' +
+    'natural sound.',
 });

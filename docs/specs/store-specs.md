@@ -123,7 +123,10 @@ With `FAL_KEY` set it's made in two steps so it looks like them: an image-edit m
 (`FAL_FRAME_MODEL`, default Seedream v4 edit) puts their face into the opening frame (at a pool in
 a speedo, back to the camera, looking back over their shoulder scared, a dark hooded figure behind
 them with a hand raised), then the video model animates the jump-scare (~5s, with sound). fal's
-content check refuses any wording where the figure hits the person, so the clip doesn't show a hit;
+content check refuses any wording where the figure hits the person, so the clip shows a playful
+jump-scare (they jump, gasp in mock outrage, then laugh) and the game draws the hit over it: a
+cartoon ✋ swings in and lands 1.2s into the clip with SMACK!, a red handprint, the smack sound and a
+buzz;
 if a step is refused, that player gets the drawn version (reason in the server log) - the prompts
 are not to be reworded to get past the check. Cached in `DATA_DIR/spankvideos/<sticker>/` (served at
 `/spankvideos/`). Once ready, the sender still walks over (~2.3s, footsteps only), then both
