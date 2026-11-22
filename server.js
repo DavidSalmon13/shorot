@@ -77,6 +77,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 require('./server/bodies').registerBodiesRoutes(app, express);
 require('./server/dishVideos').registerRoutes(app, express);
 require('./server/spankVideos').registerRoutes(app, express);
+require('./server/tomatoVideos').registerRoutes(app, express);
 stats.registerStatsRoutes(app);
 accounts.registerAccountRoutes(app);
 spankConsent.registerRoutes(app, express);

@@ -40,6 +40,8 @@ Requires Node >=18. Environment variables (see `.env.example`):
   model `FAL_VIDEO_MODEL`, default `wan/v2.6/image-to-video`): one ~5s clip per player sticker,
   generated in the background the first time that player is targeted and cached in
   `DATA_DIR/dishvideos`; until then (or with no key) the stick-arms animation plays.
+  The 🍅 Tomato Throw gag has the same kind of clip (`server/tomatoVideos.js`, `DATA_DIR/tomatovideos`),
+  played after the drawn splat lands.
   The 🍑 Spanking gag has one too, **opt-in only** (`server/spankConsent.js`: the player turns it
   on themselves for a photo sticker they uploaded while signed in; admins can only turn it off):
   `server/spankVideos.js` first makes an opening frame with an image-edit model (`FAL_FRAME_MODEL`,

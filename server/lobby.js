@@ -14,6 +14,7 @@ const { getGame, clearAllGameState, initGameState } = require('./gameRegistry');
 const { isValidSticker } = require('./stickers');
 const bodies = require('./bodies');
 const dishVideos = require('./dishVideos');
+const tomatoVideos = require('./tomatoVideos');
 const spankVideos = require('./spankVideos');
 const spankConsent = require('./spankConsent');
 const { getItem: getStoreItem } = require('./store/catalog');
@@ -753,6 +754,11 @@ function registerLobbyHandlers(socket) {
       const targetSticker = (room.players.get(target) || {}).sticker || null;
       payload.video = dishVideos.videoFor(targetSticker);
       dishVideos.ensureVideo(targetSticker);
+    } else if (itemId === 'tomato') {
+      // Same for the tomato: the target's AI splat clip plays after the drawn splat, if ready.
+      const targetSticker = (room.players.get(target) || {}).sticker || null;
+      payload.video = tomatoVideos.videoFor(targetSticker);
+      tomatoVideos.ensureVideo(targetSticker);
     }
     roomEmit(roomCode, 'storeAction', payload);
   });

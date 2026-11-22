@@ -111,6 +111,14 @@ card (with sound unless the app is muted or the phone blocks autoplay sound) ins
 stick-arms sink. Players without a ready clip (or without a photo sticker, or a GIF one) get the
 stick-arms version; so does a phone where the clip doesn't load within 2.5s.
 
+**Realistic AI video for the 🍅 Tomato Throw** (`server/tomatoVideos.js`, same machinery as the
+Dishes clip via `server/gagVideos.js`, cached in `DATA_DIR/tomatovideos/`, served at `/tomatovideos/`):
+the target's photo sticker filmed at a backyard party as a ripe tomato splats on their forehead; they
+flinch, wipe the pulp off and glare at the camera (~5s, with sound). Made once per sticker, in the
+background, the first time that player is splatted. Once it's ready, the drawn tomato still lands and
+splats on their icon, then at 1.4s the screen dims and the clip plays in the 4:5 card (~7s in all).
+Without a ready clip (or one that doesn't load within 2.5s) the drawn splat plays alone.
+
 **Realistic AI video for the 🍑 Spanking - opt-in only** (`server/spankVideos.js`,
 `server/spankConsent.js`, same machinery as the Dishes clip via `server/gagVideos.js`). A player
 only ever gets one if **they turned it on themselves** (account page, "🍑 AI spank video of me",

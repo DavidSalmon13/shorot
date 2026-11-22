@@ -29,9 +29,9 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname === '/api/me' || url.pathname.startsWith('/api/auth/')) return;
   // Video/audio go straight to the network: players load them in byte ranges (206 responses),
   // which can't be cached and which iPhone Safari fails to play when relayed by a service
-  // worker - the gags' AI clips (/dishvideos, /spankvideos) fell back to the drawn version.
+  // worker - the gags' AI clips (/dishvideos, /spankvideos, /tomatovideos) fell back to the drawn version.
   if (request.headers.has('range') || request.destination === 'video' || request.destination === 'audio') return;
-  if (/^\/(dishvideos|spankvideos)\//.test(url.pathname)) return;
+  if (/^\/(dishvideos|spankvideos|tomatovideos)\//.test(url.pathname)) return;
 
   // `no-cache` makes even this network fetch skip any copy the browser's HTTP cache still
   // thinks is fresh (it revalidates with the server instead). Navigations can't take

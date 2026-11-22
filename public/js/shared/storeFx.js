@@ -45,7 +45,8 @@ const GAGS = {
     build: buildBomb,
   },
   tomato: {
-    ms: 4800,
+    // With the target's AI video (server/tomatoVideos.js) the clip pops up after the splat lands.
+    ms: (a) => (a.video ? TOMATO_T0 + 5600 : 4800),
     avatarClass: 'store-av-shake',
     caption: (from, to) => `🍅 ${from} splatted ${to}!`,
     sound: () => sfx.splat(),
@@ -172,13 +173,22 @@ function buildBomb(stage) {
   burst(stage, { count: 8, glyphs: ['🎉', '🎊', '⭐'], spread: 170, delay: 950 });
 }
 
-function buildTomato(stage) {
+const TOMATO_T0 = 1400; // with an AI video, when the clip pops up, in ms (after the splat lands)
+
+function buildTomato(stage, { targetName, video }) {
   part(stage, 'sfx-tomato', '🍅');
   part(stage, 'sfx-splat');
   for (let i = 0; i < 4; i++) {
     part(stage, 'sfx-drip', '', { animationDelay: `${700 + i * 260}ms`, '--nx': `${-22 + i * 15}px` });
   }
   burst(stage, { count: 10, colors: ['#e0321e', '#ff5a3c', '#b81c10'], spread: 90, className: 'sfx-juice', delay: 520 });
+  if (video) {
+    // Added last so the dimmed screen and the clip cover the drawn splat.
+    stage.style.setProperty('--t0', `${TOMATO_T0}ms`);
+    const target = centerOf(targetName) || { x: window.innerWidth / 2, y: window.innerHeight * 0.45 };
+    const later = (ms, fn) => setTimeout(() => stage.isConnected && fn(), ms);
+    playGagVideo(stage, target, video, later, TOMATO_T0);
+  }
 }
 
 function buildGlove(stage) {
@@ -768,7 +778,7 @@ function loadImage(src) {
   });
 }
 
-// The Dishes and Spanking AI videos: URLs that are ready to start, and ones that failed to load
+// The Dishes, Spanking and Tomato AI videos: URLs that are ready to start, and ones that failed to load
 // (those play the drawn version). One that's merely slow is still used - the clip isn't due
 // until a few seconds into the gag (after the walk-up), and starts as soon as it can.
 const loadedVideos = new Set();
@@ -811,6 +821,10 @@ function loadVideo(src) {
 }
 
 function prepare(action) {
+  if (action.itemId === 'tomato') {
+    if (!action.video) return Promise.resolve();
+    return Promise.race([loadVideo(action.video), new Promise((resolve) => setTimeout(resolve, 2500))]);
+  }
   if (action.itemId === 'dishes') {
     const srcs = [action.fromName, action.targetName].filter(Boolean).map((n) => faceOf(n).src).filter(Boolean);
     const loads = srcs.map(loadImage);

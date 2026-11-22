@@ -1,12 +1,12 @@
 /**
- * Realistic AI videos for store gags (🧽 Go Do the Dishes, 🍑 Spanking). For each player photo
+ * Realistic AI videos for store gags (🧽 Go Do the Dishes, 🍑 Spanking, 🍅 Tomato Throw). For each player photo
  * sticker, an image-to-video model on fal.ai (https://fal.ai, default Wan 2.6) films that person
  * in the gag's scene. Each video is generated once per sticker, in the background, downloaded and
  * cached on the persisted volume (DATA_DIR/<dir>/<sticker>/), and served at /<dir>/...; after
  * that every gag of that kind on that player plays the cache.
  *
  * createGagVideos({ kind, dir, prompt, version }) makes one independent cache + queue per gag
- * (server/dishVideos.js, server/spankVideos.js).
+ * (server/dishVideos.js, server/spankVideos.js, server/tomatoVideos.js).
  *
  * Flow: a gag (server/lobby.js storeAction) attaches the target's cached video if it has one
  * (videoFor) and asks for it if not (ensureVideo). Until it's ready, clients play the drawn
