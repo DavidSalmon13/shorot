@@ -28,6 +28,7 @@ const INPUT_TYPES = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', j
 
 const apiKey = () => process.env.FAL_KEY;
 const model = () => process.env.FAL_VIDEO_MODEL || 'wan/v2.6/image-to-video';
+const frameModel = () => process.env.FAL_FRAME_MODEL || 'fal-ai/bytedance/seedream/v4/edit';
 
 /** Can this sticker get a video (a still photo the video model takes)? */
 function videoable(sticker) {
@@ -50,8 +51,11 @@ async function falJson(url, opts = {}) {
  * One gag's video cache. `kind` names the cached file (<kind>.v<version>.mp4), `dir` is both the
  * folder under DATA_DIR and the URL prefix, `prompt` is what fal films; bump `version` to
  * regenerate every video of this kind (e.g. after changing the prompt or model).
+ * `frame` ({ prompt }, optional): first make the clip's opening frame from the sticker with an
+ * image-edit model (FAL_FRAME_MODEL), then animate that frame. A face-only sticker animated
+ * straight into a different pose loses the likeness; an image-edit model keeps the face.
  */
-function createGagVideos({ kind, dir, prompt, version }) {
+function createGagVideos({ kind, dir, prompt, version, frame = null }) {
   const VERSION = version;
   const VIDEOS_DIR = path.join(DATA_DIR, dir);
   const tag = `[${dir}]`;
@@ -60,6 +64,7 @@ function createGagVideos({ kind, dir, prompt, version }) {
   const queue = [];
   const queued = new Set();
   let running = false;
+  const dropped = new Set(); // stickers whose video was removed while being made: discard it
 
   function dirFor(sticker) {
     return path.join(VIDEOS_DIR, sticker.replace(/[^\w.-]/g, '_'));
@@ -136,8 +141,11 @@ function createGagVideos({ kind, dir, prompt, version }) {
           await generateVideo(sticker);
         } catch (err) {
           console.error(`${tag} ${sticker} failed:`, err.message);
-          writeManifest(sticker, { version: VERSION, status: 'failed', error: String(err.message).slice(0, 300), at: Date.now() });
+          if (!dropped.has(sticker)) {
+            writeManifest(sticker, { version: VERSION, status: 'failed', error: String(err.message).slice(0, 300), at: Date.now() });
+          }
         } finally {
+          dropped.delete(sticker);
           queued.delete(sticker);
         }
       }
@@ -153,13 +161,38 @@ function createGagVideos({ kind, dir, prompt, version }) {
     const imageUrl = `data:${type};base64,${fs.readFileSync(source).toString('base64')}`;
     console.log(`${tag} generating a video for ${sticker} with ${model()}`);
 
-    const job = await falJson(`https://queue.fal.run/${model()}`, {
+    let startUrl = imageUrl;
+    if (frame) {
+      const shot = await runJob(frameModel(), { prompt: frame.prompt, image_urls: [imageUrl], num_images: 1 });
+      startUrl = shot && shot.images && shot.images[0] && shot.images[0].url;
+      if (!startUrl) throw new Error(`fal returned no frame: ${JSON.stringify(shot).slice(0, 200)}`);
+    }
+    const out = await runJob(model(), { prompt, image_url: startUrl, duration: '5', resolution: '720p' });
+    const url = out && out.video && out.video.url;
+    if (!url) throw new Error(`fal returned no video: ${JSON.stringify(out).slice(0, 200)}`);
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`video download failed (${res.status})`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (dropped.delete(sticker)) {
+      console.log(`${tag} ${sticker}: video removed while it was being made - discarded`);
+      return;
+    }
+    const file = `${kind}.v${VERSION}.mp4`;
+    fs.mkdirSync(dirFor(sticker), { recursive: true });
+    fs.writeFileSync(path.join(dirFor(sticker), file), buf);
+    writeManifest(sticker, { version: VERSION, status: 'ready', file, at: Date.now() });
+    console.log(`${tag} ${sticker} ready (${Math.round(buf.length / 1024)} KB)`);
+  }
+
+  /** Submits one fal queue job, waits for it and returns its result JSON. */
+  async function runJob(endpoint, input) {
+    const job = await falJson(`https://queue.fal.run/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, image_url: imageUrl, duration: '5', resolution: '720p' }),
+      body: JSON.stringify(input),
     });
     if (!job.status_url || !job.response_url) throw new Error('fal returned no job');
-
     const deadline = Date.now() + TIMEOUT_MS;
     for (;;) {
       if (Date.now() > deadline) throw new Error('timed out waiting for fal');
@@ -168,18 +201,28 @@ function createGagVideos({ kind, dir, prompt, version }) {
       if (st.status === 'COMPLETED') break;
       if (st.status !== 'IN_QUEUE' && st.status !== 'IN_PROGRESS') throw new Error(`fal job ${st.status}`);
     }
-    const out = await falJson(job.response_url);
-    const url = out && out.video && out.video.url;
-    if (!url) throw new Error(`fal returned no video: ${JSON.stringify(out).slice(0, 200)}`);
+    return falJson(job.response_url);
+  }
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`video download failed (${res.status})`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    const file = `${kind}.v${VERSION}.mp4`;
-    fs.mkdirSync(dirFor(sticker), { recursive: true });
-    fs.writeFileSync(path.join(dirFor(sticker), file), buf);
-    writeManifest(sticker, { version: VERSION, status: 'ready', file, at: Date.now() });
-    console.log(`${tag} ${sticker} ready (${Math.round(buf.length / 1024)} KB)`);
+  /**
+   * Deletes a sticker's cached video (and drops it from the queue, or discards it if it's being
+   * made right now). Never throws.
+   */
+  function removeVideo(sticker) {
+    if (!sticker) return;
+    const i = queue.indexOf(sticker);
+    if (i >= 0) {
+      queue.splice(i, 1);
+      queued.delete(sticker);
+    } else if (queued.has(sticker)) {
+      dropped.add(sticker);
+    }
+    try {
+      fs.rmSync(dirFor(sticker), { recursive: true, force: true });
+    } catch (err) {
+      console.error(`${tag} removing ${sticker} failed:`, err.message);
+    }
+    manifests.delete(sticker);
   }
 
   /** Serves the cached videos (versioned names, so cacheable for long; express handles ranges). */
@@ -193,6 +236,7 @@ function createGagVideos({ kind, dir, prompt, version }) {
     manifests.clear();
     queue.length = 0;
     queued.clear();
+    dropped.clear();
     running = false;
   }
 
@@ -206,7 +250,7 @@ function createGagVideos({ kind, dir, prompt, version }) {
     while (running || queue.length) await sleep(5);
   }
 
-  return { videoFor, ensureVideo, registerRoutes, VIDEOS_DIR, VERSION, _reset, _idle, _setPollMs };
+  return { videoFor, ensureVideo, removeVideo, registerRoutes, VIDEOS_DIR, VERSION, _reset, _idle, _setPollMs };
 }
 
 module.exports = { createGagVideos };

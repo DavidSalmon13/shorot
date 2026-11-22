@@ -31,6 +31,10 @@ const stickerSwitcherEl = document.getElementById('acct-sticker-switcher');
 const stickerGridEl = document.getElementById('acct-sticker-grid');
 const stickerErrorEl = document.getElementById('acct-sticker-error');
 const summaryEl = document.getElementById('acct-summary');
+const spankBoxEl = document.getElementById('acct-spank-video');
+const spankToggleEl = document.getElementById('acct-spank-toggle');
+const spankNoteEl = document.getElementById('acct-spank-note');
+const spankErrorEl = document.getElementById('acct-spank-error');
 const historyBodyEl = document.getElementById('acct-history-body');
 const badgesHeadingEl = document.getElementById('acct-badges-heading');
 const badgesGridEl = document.getElementById('acct-badges');
@@ -171,6 +175,7 @@ async function chooseSticker(sticker) {
       return;
     }
     myAccountSticker = data.sticker;
+    loadSpankVideo();
     cardStickerEl.src = myAccountSticker ? `images/stickers/${myAccountSticker}` : '';
     cardStickerEl.classList.toggle('hidden', !myAccountSticker);
     renderStickerGrid();
@@ -179,6 +184,56 @@ async function chooseSticker(sticker) {
     stickerErrorEl.classList.remove('hidden');
   }
 }
+
+// --- AI spank video opt-in (server/spankConsent.js) -------------------------------------
+// Only the person in the photo can turn it on: it applies to a sticker this account uploaded.
+
+function renderSpankVideo(st) {
+  spankBoxEl.classList.toggle('hidden', !st);
+  if (!st) return;
+  spankToggleEl.checked = !!st.optedIn;
+  if (!st.ownSticker) {
+    spankNoteEl.textContent = 'Only works with a photo of you that you uploaded yourself while signed in. '
+      + 'Upload one in the lobby sticker picker and pick it as your sticker.';
+  } else {
+    spankNoteEl.textContent = st.optedIn
+      ? 'On. Your clip is made the first time someone spanks you (a few minutes). Turning it off deletes it.'
+      : 'Off. Turn it on only if your sticker is a photo of you.';
+  }
+}
+
+async function loadSpankVideo() {
+  try {
+    const res = await fetch('/api/account/spank-video');
+    const data = await res.json();
+    renderSpankVideo(data.ok ? data : null);
+  } catch {
+    renderSpankVideo(null);
+  }
+}
+
+spankToggleEl.addEventListener('change', async () => {
+  const on = spankToggleEl.checked;
+  if (on && !confirm('Turn on the AI spank video? Only do this if your sticker is a photo of you.')) {
+    spankToggleEl.checked = false;
+    return;
+  }
+  spankErrorEl.classList.add('hidden');
+  try {
+    const res = await fetch('/api/account/spank-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ on }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Could not update the setting');
+    renderSpankVideo(data);
+  } catch (err) {
+    spankToggleEl.checked = !on;
+    spankErrorEl.textContent = err.message || 'Could not update the setting';
+    spankErrorEl.classList.remove('hidden');
+  }
+});
 
 // --- Store tab --------------------------------------------------------------------------
 
@@ -437,6 +492,9 @@ function render(user, card, balance) {
   renderRivals(rivalsListEl, rivalsHeadingEl, (card && card.rivals) || []);
 
   lockedStickers = new Set((card && card.lockedStickers) || []);
+
+  if (user) loadSpankVideo();
+  else renderSpankVideo(null);
 
   // Store tab: only for signed-in players, and only where the server has it enabled.
   if (user) {

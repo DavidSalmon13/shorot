@@ -15,6 +15,7 @@ const db = require('./db');
 const stats = require('./stats');
 const { logActivity, recentActivity } = require('./activity');
 const accounts = require('./accounts');
+const spankConsent = require('./spankConsent');
 const {
   connectedNames,
   scoreboardEntries,
@@ -269,7 +270,9 @@ function registerAdminRoutes(app, { ctx }) {
       `SELECT u.id, u.display_name, u.email, u.avatar_url, u.sticker, u.created_at, u.banned_at,
               (SELECT COUNT(*) FROM auth_sessions s WHERE s.user_id = u.id AND s.expires_at > now())::int AS sessions,
               (SELECT balance FROM wallets w WHERE w.user_id = u.id) AS tokens,
-              (SELECT array_agg(provider) FROM user_identities i WHERE i.user_id = u.id) AS providers
+              (SELECT array_agg(provider) FROM user_identities i WHERE i.user_id = u.id) AS providers,
+              u.spank_video_opt_in_at,
+              (SELECT COUNT(*) FROM sticker_uploads su WHERE su.user_id = u.id)::int AS uploaded_stickers
          FROM users u WHERE u.id = $1`,
       [id]
     );
@@ -344,6 +347,15 @@ function registerAdminRoutes(app, { ctx }) {
         kickEverywhere((p) => String(p.userId || '') === String(id) || clientIds.has(p.clientId));
       }
       logActivity('admin', `Admin ${req.body.banned ? 'banned' : 'unbanned'} account ${label}`);
+    }
+    // Admins can switch a player's AI spank video OFF (deletes their clips), never on: only
+    // the person in the photo can opt in (server/spankConsent.js).
+    if (req.body.spankVideo !== undefined) {
+      if (req.body.spankVideo !== false) {
+        return res.status(400).json({ ok: false, error: 'Only the player can turn this on' });
+      }
+      await spankConsent.setOptIn(id, false);
+      logActivity('admin', `Admin turned off the AI spank video for ${label}`);
     }
     if (req.body.tokensDelta !== undefined) {
       const delta = Number(req.body.tokensDelta);

@@ -98,6 +98,8 @@ async function isBanned({ userId, clientId }) {
  * shared games are kept; games left with no participants are removed.
  */
 async function deleteUser(userId) {
+  // Their AI spank clips go too (lazy require: spankConsent's routes require this module).
+  await require('./spankConsent').removeVideosOf(userId).catch(() => {});
   await db.transaction(async (client) => {
     // players -> game_participants/achievements cascade; users -> identities/sessions cascade.
     await client.query('DELETE FROM players WHERE user_id = $1', [userId]);

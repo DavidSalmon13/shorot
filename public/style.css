@@ -5114,6 +5114,32 @@ button.confirm-danger {
   font-weight: 600;
 }
 
+/* Account page: the AI spank video opt-in (account-page.js renderSpankVideo). */
+.acct-optin {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  text-align: left;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.acct-optin input {
+  flex: none;
+  width: 1.3rem;
+  height: 1.3rem;
+  margin-top: 0.1rem;
+  accent-color: var(--accent, #c6ff4a);
+}
+
+#acct-spank-note {
+  margin-top: 0.5rem;
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .card-guest {
   display: flex;
   flex-direction: column;

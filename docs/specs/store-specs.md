@@ -111,11 +111,21 @@ card (with sound unless the app is muted or the phone blocks autoplay sound) ins
 stick-arms sink. Players without a ready clip (or without a photo sticker, or a GIF one) get the
 stick-arms version; so does a phone where the clip doesn't load within 2.5s.
 
-**Realistic AI video for the 🍑 Spanking** (`server/spankVideos.js`, same machinery as the Dishes
-clip via `server/gagVideos.js`): with `FAL_KEY` set, the target's photo sticker is filmed as a real
-person in boxers, back to the camera, looking back over their shoulder in fear while a dark hooded
-figure slaps their backside (~5s, with sound). Generated once per sticker in the background the
-first time that player is spanked, cached in `DATA_DIR/spankvideos/<sticker>/` (served at
+**Realistic AI video for the 🍑 Spanking - opt-in only** (`server/spankVideos.js`,
+`server/spankConsent.js`, same machinery as the Dishes clip via `server/gagVideos.js`). A player
+only ever gets one if **they turned it on themselves** (account page, "🍑 AI spank video of me",
+off by default) **and** their sticker is a photo **they uploaded while signed in** (uploads record
+their uploader in `sticker_uploads`). Built-in stickers, guests, and stickers someone else uploaded
+never get one. Turning it off deletes their cached clips; so does deleting the account. Admins can
+see who opted in and switch anyone **off** from `/admin` (never on: consent can't be given on
+someone's behalf).
+With `FAL_KEY` set it's made in two steps so it looks like them: an image-edit model
+(`FAL_FRAME_MODEL`, default Seedream v4 edit) puts their face into the opening frame (at a pool in
+a speedo, back to the camera, looking back over their shoulder scared, a dark hooded figure behind
+them with a hand raised), then the video model animates the jump-scare (~5s, with sound). fal's
+content check refuses any wording where the figure hits the person, so the clip doesn't show a hit;
+if a step is refused, that player gets the drawn version (reason in the server log) - the prompts
+are not to be reworded to get past the check. Cached in `DATA_DIR/spankvideos/<sticker>/` (served at
 `/spankvideos/`). Once ready, the sender still walks over (~2.3s, footsteps only), then both
 puppets vanish, the screen dims and the clip plays in the 4:5 card instead of the drawn smacks
 (gag ~8.2s). No ready clip, or it doesn't load within 2.5s = the drawn version.

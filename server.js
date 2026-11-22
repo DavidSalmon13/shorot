@@ -38,6 +38,7 @@ const betting = require('./server/betting');
 const store = require('./server/store');
 const admin = require('./server/admin');
 const suggestions = require('./server/suggestions');
+const spankConsent = require('./server/spankConsent');
 const { logActivity } = require('./server/activity');
 
 const app = express();
@@ -78,6 +79,7 @@ require('./server/dishVideos').registerRoutes(app, express);
 require('./server/spankVideos').registerRoutes(app, express);
 stats.registerStatsRoutes(app);
 accounts.registerAccountRoutes(app);
+spankConsent.registerRoutes(app, express);
 
 // Falls through from the public/ static above, so uploaded stickers share the
 // built-ins' /images/stickers URL.
@@ -96,6 +98,8 @@ app.post('/api/stickers', express.raw({ type: 'image/*', limit: '2mb' }), (req, 
   }
   const result = addCustomSticker(req.headers['content-type'], req.body);
   if (result.error) return res.status(400).json({ ok: false, error: result.error });
+  // Remembered so only the uploader can opt in to AI spank videos of it (server/spankConsent.js).
+  spankConsent.recordUpload(result.id, room.players.get(name).userId);
   io.emit('stickersUpdated', { stickers: stickerFiles() });
   res.json({ ok: true, sticker: result.id });
 });

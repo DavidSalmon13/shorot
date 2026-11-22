@@ -15,6 +15,7 @@ const { isValidSticker } = require('./stickers');
 const bodies = require('./bodies');
 const dishVideos = require('./dishVideos');
 const spankVideos = require('./spankVideos');
+const spankConsent = require('./spankConsent');
 const { getItem: getStoreItem } = require('./store/catalog');
 const {
   canUseSticker,
@@ -739,9 +740,13 @@ function registerLobbyHandlers(socket) {
       const targetSticker = (room.players.get(target) || {}).sticker || null;
       payload.bodies = { from: bodies.bodiesFor(fromSticker), target: bodies.bodiesFor(targetSticker) };
       bodies.ensureBodies(fromSticker, targetSticker);
-      // And the target's AI spanking video (server/spankVideos.js), which replaces the smacks.
-      payload.video = spankVideos.videoFor(targetSticker);
-      spankVideos.ensureVideo(targetSticker);
+      // And the target's AI spanking video (server/spankVideos.js), which replaces the smacks -
+      // only if they opted in themselves for a sticker they uploaded (server/spankConsent.js).
+      const targetUserId = (room.players.get(target) || {}).userId || null;
+      if (await spankConsent.isAllowed(targetUserId, targetSticker)) {
+        payload.video = spankVideos.videoFor(targetSticker);
+        spankVideos.ensureVideo(targetSticker);
+      }
     } else if (itemId === 'dishes') {
       // The target's realistic AI dishes video, if their sticker has one cached (else the
       // clients play the stick-arms version); a missing one starts generating for next time.

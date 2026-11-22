@@ -580,6 +580,9 @@
             <dt>Badges</dt><dd>${badges.length ? esc(badges.join(', ')) : '—'}</dd>
             <dt>Tokens</dt><dd>${user.tokens == null ? '— (no wallet yet)' : esc(Number(user.tokens).toLocaleString())}</dd>
             ${user.banned_at ? `<dt>Banned</dt><dd>${esc(fmtDateTime(user.banned_at))}</dd>` : ''}
+            <dt>AI spank video</dt><dd>${user.spank_video_opt_in_at
+              ? `<span class="pill accent">on</span> since ${esc(fmtDateTime(user.spank_video_opt_in_at))} <button type="button" class="danger small" data-act="spank-off">Turn off</button>`
+              : 'off'} <span class="muted">· ${user.uploaded_stickers} uploaded sticker${user.uploaded_stickers === 1 ? '' : 's'} · only the player can turn it on</span></dd>
           </dl>
           <form id="rename-form">
             <input id="rename-input" maxlength="80" value="${esc(user.display_name)}" aria-label="Display name" />
@@ -639,6 +642,9 @@
           if (banned && !confirm(`Ban ${name}? They're signed out, disconnected, and can't sign in or join from any of their devices.`)) return;
           return act('POST', `/api/admin/users/${id}`, { banned }, banned ? 'Account banned' : 'Account unbanned', refreshUsers);
         }
+        case 'spank-off':
+          if (!confirm(`Turn off ${name}'s AI spank video? Their saved clips are deleted, and only they can turn it back on.`)) return;
+          return act('POST', `/api/admin/users/${id}`, { spankVideo: false }, 'AI spank video turned off', refreshUsers);
         case 'delete':
           if (!confirm(`Permanently delete ${name}'s account, game history and badges? This can't be undone.`)) return;
           openUserId = null;
