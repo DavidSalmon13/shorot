@@ -24,6 +24,8 @@ import { initInstallButtons } from './shared/installApp.js';
 import { initSuggestionBox } from './shared/suggestionBox.js';
 import { initRecaps, refreshRecapStatus } from './shared/recaps.js';
 import { applyCosmetics, applyMyBoardSkin } from './shared/cosmetics.js';
+import { initFitTileNames } from './shared/fitTileNames.js';
+import { initGameRules } from './shared/gameRules.js';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -699,6 +701,8 @@ initStore(socket, { getMyName });
 initCosmeticEffects(socket);
 initSuggestionBox();
 initRecaps(socket, { getIsHost });
+initGameRules();
+initFitTileNames();
 
 function chooseGame(game) {
   flashChooseError('');
