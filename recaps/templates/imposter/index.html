@@ -1,0 +1,80 @@
+<!doctype html>
+<!--
+  Imposter recap (11 s): title, then the reveal ("The imposter was Noa" + caught / got away, then the
+  secret word and the imposter's hint), then the results. Data comes from imposter.js recapData():
+  highlight = { mode: 'word' | 'board', imposters: [name], caught: bool, word, hint }.
+-->
+<html lang="en" data-resolution="portrait" data-composition-variables='[{"id":"recap","type":"string","label":"Recap data (JSON)","default":""}]'>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <link rel="stylesheet" href="shared/recap.css" />
+    <script src="shared/gsap.min.js"></script>
+    <style>
+      #reveal .stack { top: 380px; }
+      .suspects { margin-top: 44px; display: flex; gap: 36px; justify-content: center; }
+      .verdict { margin-top: 40px; display: inline-block; padding: 18px 44px; border-radius: 999px; font-size: 48px; font-weight: 800; }
+      .verdict.caught { background: var(--accent); color: #0a0a12; }
+      .verdict.escaped { background: var(--red); color: #0a0a12; }
+      .pair { width: 100%; display: flex; gap: 28px; }
+      .pair .card { flex: 1; padding: 36px 24px; }
+      .pair .card-value { font-size: 64px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="11" data-width="1080" data-height="1920">
+      <div id="glow-a" class="glow clip" data-start="0" data-duration="11"></div>
+      <div id="glow-b" class="glow clip" data-start="0" data-duration="11"></div>
+      <div id="title" class="scene clip" data-start="0" data-duration="1.8"></div>
+      <div id="reveal" class="scene clip" data-start="1.8" data-duration="4.6"></div>
+      <div id="results" class="scene clip" data-start="6.4" data-duration="4.6"></div>
+    </div>
+    <script src="shared/recap.js"></script>
+    <script>
+      var R = Recap;
+      var h = R.highlight;
+      var imposters = Array.isArray(h.imposters) ? h.imposters : [];
+
+      var s = R.el('div', 'stack');
+      s.appendChild(R.el('div', 'hl-kicker', imposters.length > 1 ? 'The imposters were' : 'The imposter was'));
+      var suspects = R.el('div', 'suspects');
+      imposters.slice(0, 3).forEach(function (n) {
+        var box = R.el('div', 'winner');
+        box.appendChild(R.avatar(R.byName(n), imposters.length > 1 ? 180 : 240));
+        box.appendChild(R.el('div', 'winner-name', n));
+        suspects.appendChild(box);
+      });
+      s.appendChild(suspects);
+      s.appendChild(R.el('div', 'verdict ' + (h.caught ? 'caught' : 'escaped'), h.caught ? 'Caught!' : 'Got away!'));
+      if (h.mode !== 'board' && (h.word || h.hint)) {
+        var pair = R.el('div', 'pair');
+        var w = R.el('div', 'card');
+        w.appendChild(R.el('div', 'card-label', 'The word'));
+        w.appendChild(R.el('div', 'card-value accent', h.word || '?'));
+        var hint = R.el('div', 'card');
+        hint.appendChild(R.el('div', 'card-label', 'Imposter hint'));
+        hint.appendChild(R.el('div', 'card-value', h.hint || '-'));
+        pair.appendChild(w);
+        pair.appendChild(hint);
+        s.appendChild(pair);
+      }
+      document.getElementById('reveal').appendChild(s);
+
+      R.buildTitle(document.getElementById('title'));
+      R.buildResults(document.getElementById('results'));
+      R.glows(11);
+      R.animateTitle(1.8);
+
+      var t = 1.8;
+      R.tl.from('#reveal .hl-kicker', { opacity: 0, y: -30, duration: 0.4, ease: 'power3.out' }, t + 0.1);
+      R.tl.from('#reveal .suspects .avatar', { scale: 0, rotation: -20, duration: 0.7, stagger: 0.15, ease: 'back.out(2)' }, t + 0.4);
+      R.tl.from('#reveal .suspects .winner-name', { opacity: 0, duration: 0.4 }, t + 0.9);
+      R.tl.from('#reveal .verdict', { scale: 0, duration: 0.5, ease: 'back.out(2.4)' }, t + 1.3);
+      R.tl.from('#reveal .card', { y: 120, opacity: 0, duration: 0.6, stagger: 0.2, ease: 'power3.out' }, t + 2.0);
+      R.tl.to('#reveal', { opacity: 0, y: -60, duration: 0.3, ease: 'power2.in' }, 6.1);
+
+      R.animateResults(6.4);
+      R.finish();
+    </script>
+  </body>
+</html>

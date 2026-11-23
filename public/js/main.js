@@ -22,6 +22,7 @@ import { initStore, refreshStore } from './shared/storeActions.js';
 import { initCosmeticEffects } from './shared/cosmeticEffects.js';
 import { initInstallButtons } from './shared/installApp.js';
 import { initSuggestionBox } from './shared/suggestionBox.js';
+import { initRecaps, refreshRecapStatus } from './shared/recaps.js';
 import { applyCosmetics, applyMyBoardSkin } from './shared/cosmetics.js';
 
 if ('serviceWorker' in navigator) {
@@ -604,6 +605,7 @@ function attemptJoin(name) {
 function routeFromJoin(res) {
   currentGame = res.game || null;
   setHost(res.host);
+  refreshRecapStatus();
 
   if (res.game === 'codenames' && res.phase === 'generating') {
     showGenerating('codenames');
@@ -696,6 +698,7 @@ initReactions(socket);
 initStore(socket, { getMyName });
 initCosmeticEffects(socket);
 initSuggestionBox();
+initRecaps(socket, { getIsHost });
 
 function chooseGame(game) {
   flashChooseError('');

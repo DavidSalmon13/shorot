@@ -439,6 +439,24 @@ function registerHandlers(ctx, io, socket) {
   });
 }
 
+/**
+ * Recap video highlight (server/recaps, optional game-contract hook). Pure: called at game over,
+ * when roundResults still holds the final round (the champion and whoever went out last).
+ */
+function recapData(room) {
+  const ts = room.state.tenseconds;
+  const champion = ts.activePlayers[0] || null;
+  const finalRound = Object.entries(ts.roundResults || {})
+    .map(([name, r]) =>
+      r.dnf || r.elapsedMs == null
+        ? { name, time: 'DNF', off: null, sort: Number.POSITIVE_INFINITY }
+        : { name, time: (r.elapsedMs / 1000).toFixed(3), off: (r.distanceMs / 1000).toFixed(3), sort: r.distanceMs }
+    )
+    .sort((a, b) => a.sort - b.sort)
+    .map(({ name, time, off }) => ({ name, time, off }));
+  return { template: 'ten-seconds', champion, finalRound, out: (ts.eliminationWaves || []).flat() };
+}
+
 module.exports = {
   id: 'tenseconds',
   minPlayers: TS_MIN_PLAYERS,
@@ -451,4 +469,5 @@ module.exports = {
   namespaces: [{ id: 'tenseconds', createState, savedFields: SAVED_FIELDS }],
   repairOnLoad,
   clearState,
+  recapData,
 };

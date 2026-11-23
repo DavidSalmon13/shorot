@@ -1,6 +1,20 @@
 # Recap Videos (HyperFrames) — Specs
 
-**Status: draft for review.** Phase 1 (the promo trailer, `video/promo/`) is built. Phase 2 is not started.
+**Status:** Phase 1 (the promo trailer, `video/promo/`) is built. Phase 2a/2b (pipeline, generic +
+Imposter + 10 Seconds templates, phone UI) is built behind `RECAPS_ENABLED`, off by default.
+
+**Built differently from the draft below:**
+- `RECAP_WORKERS` defaults to **2**: one worker rendered a 10 s recap in about 88 s, two in about
+  45-60 s (4 vCPU test container).
+- The recap chip is one floating chip shared by every game (`public/js/shared/recaps.js`) rather
+  than markup inside each game-over screen, so no game's client code changes. Phones pull the
+  status with `getRecapStatus` after a (re)join, so `lobby.js` and the reconnect payloads don't
+  change either.
+- The Dockerfile is opt-in at `deploy/recaps.Dockerfile` (Railway variable
+  `RAILWAY_DOCKERFILE_PATH`), and `engines.node` stays `>=18`. A root `Dockerfile` would switch
+  production's build the moment it merged; this way recaps just stay off until you opt in.
+- Templates get their data as one JSON string variable (`recap`), validated with
+  `--strict-variables`.
 
 At the end of a game, Shorot renders a short **recap video** for the room: the game, the winner, the
 scoreboard and one or two highlights of what happened ("Noa was the imposter, the word was *Pizza*").

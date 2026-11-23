@@ -1,0 +1,86 @@
+<!doctype html>
+<!--
+  10 Seconds recap (11 s): title, then the final duel (each finalist's stopwatch time counting up
+  and how far off 10.000 s it was), then the results. Data comes from tenseconds.js recapData():
+  highlight = { champion, finalRound: [{ name, time, off }], out: [names, first eliminated first] }.
+-->
+<html lang="en" data-resolution="portrait" data-composition-variables='[{"id":"recap","type":"string","label":"Recap data (JSON)","default":""}]'>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <link rel="stylesheet" href="shared/recap.css" />
+    <script src="shared/gsap.min.js"></script>
+    <style>
+      #duel .stack { top: 360px; }
+      .target { margin-top: 10px; font-size: 120px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+      .lane { margin-top: 30px; width: 100%; display: flex; align-items: center; gap: 28px; padding: 26px 34px; border-radius: 44px; background: var(--glass); border: 2px solid var(--glass-border); text-align: left; }
+      .lane.champ { border-color: rgba(198, 255, 74, 0.7); }
+      .lane .who { flex: 1; min-width: 0; }
+      .lane .who .n { font-size: 44px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .lane .who .off { margin-top: 6px; font-size: 30px; color: var(--muted); }
+      .lane .clock { font-size: 72px; font-weight: 800; font-variant-numeric: tabular-nums; }
+      .lane.champ .clock { color: var(--accent); }
+      .out { margin-top: 44px; font-size: 32px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="11" data-width="1080" data-height="1920">
+      <div id="glow-a" class="glow clip" data-start="0" data-duration="11"></div>
+      <div id="glow-b" class="glow clip" data-start="0" data-duration="11"></div>
+      <div id="title" class="scene clip" data-start="0" data-duration="1.8"></div>
+      <div id="duel" class="scene clip" data-start="1.8" data-duration="4.6"></div>
+      <div id="results" class="scene clip" data-start="6.4" data-duration="4.6"></div>
+    </div>
+    <script src="shared/recap.js"></script>
+    <script>
+      var R = Recap;
+      var h = R.highlight;
+      var lanes = Array.isArray(h.finalRound) ? h.finalRound.slice(0, 4) : [];
+
+      var s = R.el('div', 'stack');
+      s.appendChild(R.el('div', 'hl-kicker', 'Final round · target'));
+      s.appendChild(R.el('div', 'target', '10.000'));
+      lanes.forEach(function (f, i) {
+        var lane = R.el('div', 'lane' + (f.name === h.champion ? ' champ' : ''));
+        lane.appendChild(R.avatar(R.byName(f.name), 96));
+        var who = R.el('div', 'who');
+        who.appendChild(R.el('div', 'n', (f.name === h.champion ? '👑 ' : '') + f.name));
+        who.appendChild(R.el('div', 'off', f.off ? f.off + 's off' : f.time === 'DNF' ? 'did not stop' : ''));
+        lane.appendChild(who);
+        var clock = R.el('div', 'clock', f.time === 'DNF' ? 'DNF' : '0.000');
+        clock.id = 'clock-' + i;
+        lane.appendChild(clock);
+        s.appendChild(lane);
+      });
+      var out = Array.isArray(h.out) ? h.out : [];
+      if (out.length) s.appendChild(R.el('div', 'out', 'Knocked out: ' + out.slice(0, 8).join(' → ')));
+      document.getElementById('duel').appendChild(s);
+
+      R.buildTitle(document.getElementById('title'));
+      R.buildResults(document.getElementById('results'));
+      R.glows(11);
+      R.animateTitle(1.8);
+
+      var t = 1.8;
+      R.tl.from('#duel .hl-kicker, #duel .target', { opacity: 0, y: -30, duration: 0.4, stagger: 0.1, ease: 'power3.out' }, t + 0.1);
+      R.tl.from('#duel .lane', { x: 900, duration: 0.5, stagger: 0.15, ease: 'power3.out' }, t + 0.4);
+      // Stopwatches count up to each finalist's time; the counter is a tweened plain object.
+      lanes.forEach(function (f, i) {
+        var target = parseFloat(f.time);
+        if (!isFinite(target)) return;
+        var clock = document.getElementById('clock-' + i);
+        var o = { v: 0 };
+        R.tl.to(o, {
+          v: target, duration: 1.6, ease: 'power2.out',
+          onUpdate: function () { clock.textContent = o.v.toFixed(3); },
+        }, t + 0.9);
+      });
+      R.tl.from('#duel .off', { opacity: 0, duration: 0.4, stagger: 0.1 }, t + 2.6);
+      R.tl.from('#duel .out', { opacity: 0, y: 30, duration: 0.5 }, t + 3.0);
+      R.tl.to('#duel', { opacity: 0, y: -60, duration: 0.3, ease: 'power2.in' }, 6.1);
+
+      R.animateResults(6.4);
+      R.finish();
+    </script>
+  </body>
+</html>

@@ -47,6 +47,12 @@ Requires Node >=18. Environment variables (see `.env.example`):
   `server/spankVideos.js` first makes an opening frame with an image-edit model (`FAL_FRAME_MODEL`,
   default `fal-ai/bytedance/seedream/v4/edit`), then animates it; cached in `DATA_DIR/spankvideos`.
   Both share `server/gagVideos.js`. Don't reword prompts to get past fal's content check.
+- `RECAPS_ENABLED` — `true` turns on recap videos: a short video of each finished game
+  (`server/recaps/`, templates in `recaps/templates/`, spec `docs/specs/recap-videos-specs.md`),
+  rendered by the HyperFrames CLI in a child process and cached in `DATA_DIR/recaps` for 24 h.
+  Needs Node >= 22, FFmpeg and Chromium (`deploy/recaps.Dockerfile`); otherwise it stays off by
+  itself. Games opt in to a per-game highlight with an optional `recapData(room, participants)`
+  hook (Imposter and 10 Seconds have one); every other game gets the generic recap.
 - `DATA_DIR` — where `rooms.json` (room state snapshot), uploaded
   background images, and player-uploaded stickers (`DATA_DIR/stickers`) are persisted; point this at a mounted volume in
   production (e.g. Railway) so state survives redeploys.

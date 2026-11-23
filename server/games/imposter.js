@@ -703,6 +703,26 @@ function registerHandlers(ctx, io, socket) {
   });
 }
 
+/**
+ * Recap video highlight (server/recaps, optional game-contract hook). Pure: reads the round that
+ * just finished. In word mode the crew's word and the imposter's hint are still on the players.
+ */
+function recapData(room, participants) {
+  const imposters = participants.filter((p) => p.role === 'imposter').map((p) => p.name);
+  const caught = participants.some((p) => p.role === 'imposter' && p.details && p.details.eliminated);
+  const players = [...room.players.values()];
+  const crew = players.find((p) => p.role === 'crew' && p.word);
+  const imposter = players.find((p) => p.role === 'imposter' && p.hint);
+  return {
+    template: 'imposter',
+    mode: room.state.imposter.board ? 'board' : 'word',
+    imposters,
+    caught,
+    word: crew ? crew.word : null,
+    hint: imposter ? imposter.hint : null,
+  };
+}
+
 module.exports = {
   id: 'imposter',
   minPlayers: MIN_PLAYERS,
@@ -715,4 +735,5 @@ module.exports = {
   namespaces: [{ id: 'imposter', createState, savedFields: SAVED_FIELDS }],
   repairOnLoad,
   clearState,
+  recapData,
 };

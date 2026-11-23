@@ -7300,3 +7300,61 @@ body.store-picking [data-player] {
     animation: store-fx-fade var(--life) ease forwards;
   }
 }
+
+/* Recap videos (js/shared/recaps.js): floating chip + full-screen player. Layout only here;
+   the Afterglow look is in theme-afterglow.css. */
+.recap-chip {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+  transform: translateX(-50%);
+  z-index: 170;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100vw - 32px);
+  padding: 4px;
+  border-radius: 999px;
+  background: #2a2745;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.recap-chip-label,
+.recap-chip-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.recap-chip-label { padding: 10px 16px; white-space: nowrap; }
+.recap-chip-label:disabled { cursor: default; opacity: 0.85; }
+.recap-chip-close { width: 36px; height: 36px; border-radius: 50%; font-size: 22px; line-height: 1; }
+.recap-player {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.85);
+}
+.recap-player-box { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 420px; max-height: 100%; }
+.recap-video { width: 100%; max-height: calc(100vh - 120px); aspect-ratio: 9 / 16; border-radius: 18px; background: #000; object-fit: contain; }
+.recap-player-actions { display: flex; gap: 10px; }
+.recap-btn {
+  flex: 1;
+  padding: 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #3a3658;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.recap-btn-primary { background: #f0a020; color: #1a1200; }

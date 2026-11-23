@@ -46,6 +46,8 @@ const SHARED_SAVED_FIELDS = [
   'backgroundImage',
   'wordLanguage',
   'wordTheme',
+  'recap', // recap video status for the last finished game (server/recaps)
+  'recapsOff', // host turned recap videos off for this room
 ];
 
 // Flat top-level fields to persist: shared fields plus the savedFields of games still using

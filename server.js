@@ -29,7 +29,7 @@ const {
   sweepStalePlayers,
   SHARED_ROOM_CODE,
 } = require('./server/lobby');
-const { registerAllHandlers } = require('./server/gameRegistry');
+const { registerAllHandlers, getGame } = require('./server/gameRegistry');
 const { CUSTOM_STICKERS_DIR, stickerFiles, addCustomSticker } = require('./server/stickers');
 const stats = require('./server/stats');
 const db = require('./server/db');
@@ -40,6 +40,8 @@ const admin = require('./server/admin');
 const suggestions = require('./server/suggestions');
 const spankConsent = require('./server/spankConsent');
 const { logActivity } = require('./server/activity');
+const { createRecaps } = require('./server/recaps');
+const recapRenderer = require('./server/recaps/renderer');
 
 const app = express();
 const server = http.createServer(app);
@@ -85,6 +87,10 @@ spankConsent.registerRoutes(app, express);
 // Falls through from the public/ static above, so uploaded stickers share the
 // built-ins' /images/stickers URL.
 app.use('/images/stickers', express.static(CUSTOM_STICKERS_DIR));
+
+// Recap videos of finished games (docs/specs/recap-videos-specs.md). Off unless RECAPS_ENABLED=true.
+const recaps = createRecaps({ dataDir: DATA_DIR, roomEmit, getGame, log: logActivity, renderer: recapRenderer });
+recaps.registerRoutes(app);
 
 app.get('/api/stickers', (req, res) => {
   res.json({ stickers: stickerFiles() });
@@ -144,6 +150,8 @@ const ctx = {
     const winners = participants.filter((p) => p.won).map((p) => p.name);
     logActivity('result', `${gameType} finished${winners.length ? ` - won: ${winners.join(', ')}` : ''}`);
     const roomCode = [...rooms.entries()].find(([, r]) => r === room)?.[0] || '';
+    // Recap video: reads the room now, while it still holds the finished game's state.
+    recaps.onGameResult({ room, roomCode, gameType, participants });
     // Winner's Podium (store cosmetic): winners who have it equipped get a full-screen
     // confetti + fireworks celebration on every phone in the room. Delayed a beat so it
     // lands on top of the game-over screen rather than racing it.
@@ -249,9 +257,11 @@ io.on('connection', (socket) => {
   stats.recordVisit(String((socket.handshake.auth && socket.handshake.auth.clientId) || '').slice(0, 64));
   registerLobbyHandlers(socket);
   registerAllHandlers(ctx, io, socket);
+  recaps.registerHandlers(socket, { getRoom });
 });
 
 loadRoomsFromDisk({ ctx });
+recaps.start(rooms);
 db.initDb().then(() => {
   accounts.startCleanup();
   // Any bet still 'accepted' (unresolved, game_id NULL) at boot was riding on in-flight

@@ -1,0 +1,31 @@
+<!doctype html>
+<!--
+  Generic recap (8 s): title card, then winners + ranked results. Used for every game without its
+  own template. Rendered by server/recaps/renderer.js, which copies this file into a job dir next to
+  shared/ (recaps/templates/_shared) and passes the data as the `recap` variable (a JSON string).
+-->
+<html lang="en" data-resolution="portrait" data-composition-variables='[{"id":"recap","type":"string","label":"Recap data (JSON)","default":""}]'>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <link rel="stylesheet" href="shared/recap.css" />
+    <script src="shared/gsap.min.js"></script>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="8" data-width="1080" data-height="1920">
+      <div id="glow-a" class="glow clip" data-start="0" data-duration="8"></div>
+      <div id="glow-b" class="glow clip" data-start="0" data-duration="8"></div>
+      <div id="title" class="scene clip" data-start="0" data-duration="2"></div>
+      <div id="results" class="scene clip" data-start="2" data-duration="6"></div>
+    </div>
+    <script src="shared/recap.js"></script>
+    <script>
+      Recap.buildTitle(document.getElementById('title'));
+      Recap.buildResults(document.getElementById('results'));
+      Recap.glows(8);
+      Recap.animateTitle(2);
+      Recap.animateResults(2);
+      Recap.finish();
+    </script>
+  </body>
+</html>

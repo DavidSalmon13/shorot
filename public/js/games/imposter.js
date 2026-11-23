@@ -37,7 +37,7 @@ let myAccuseVote = null;
 
 function queryDom() {
   levelButtons = Array.from(
-    document.querySelectorAll('.level-btn:not(.cn-timer-btn):not(.word-lang-btn)')
+    document.querySelectorAll('.level-btn:not(.cn-timer-btn):not(.word-lang-btn):not(.recap-toggle-btn)')
   );
   voteCount = document.getElementById('vote-count');
   votingError = document.getElementById('voting-error');

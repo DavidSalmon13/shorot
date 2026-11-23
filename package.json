@@ -15,6 +15,7 @@
     "dotenv": "^17.4.2",
     "express": "^4.19.2",
     "google-auth-library": "^11.3.0",
+    "hyperframes": "0.9.86",
     "pg": "^8.23.1",
     "pokersolver": "^2.1.4",
     "socket.io": "^4.7.5"

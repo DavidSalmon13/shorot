@@ -1323,3 +1323,27 @@
   border: 1.5px solid var(--accent);
   box-shadow: 0 0 18px rgba(198, 255, 74, 0.5);
 }
+
+/* Recap videos: glass chip that turns lime when the recap is ready; lime Share in the player. */
+:where(:root[data-theme="afterglow"]) .recap-chip {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(14px);
+  color: var(--text);
+}
+:where(:root[data-theme="afterglow"]) .recap-chip.ready {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  box-shadow: 0 0 24px rgba(198, 255, 74, 0.45);
+}
+:where(:root[data-theme="afterglow"]) .recap-btn {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+}
+:where(:root[data-theme="afterglow"]) .recap-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
