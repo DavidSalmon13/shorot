@@ -23,6 +23,7 @@ import { initCosmeticEffects } from './shared/cosmeticEffects.js';
 import { initInstallButtons } from './shared/installApp.js';
 import { initSuggestionBox } from './shared/suggestionBox.js';
 import { applyCosmetics, applyMyBoardSkin } from './shared/cosmetics.js';
+import { initFitTileNames } from './shared/fitTileNames.js';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -696,6 +697,7 @@ initReactions(socket);
 initStore(socket, { getMyName });
 initCosmeticEffects(socket);
 initSuggestionBox();
+initFitTileNames();
 
 function chooseGame(game) {
   flashChooseError('');
