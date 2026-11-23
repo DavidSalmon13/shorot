@@ -901,6 +901,42 @@ button.secondary:active:not(:disabled) {
   transition: transform 0.12s var(--ease), box-shadow 0.12s var(--ease);
 }
 
+/* Rules "?" in each tile's top-right corner (added by public/js/shared/gameRules.js). */
+.game-tile {
+  position: relative;
+}
+
+.game-tile-help {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-family: var(--font);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent-text);
+  background: rgba(255, 255, 255, 0.35);
+  border: 2px solid var(--bark);
+  cursor: pointer;
+}
+
+/* Bigger invisible hit area so the small circle is easy to tap. */
+.game-tile-help::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.rules-text {
+  text-align: left;
+  font-size: 0.98rem;
+}
+
 .game-tile:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 7px 0 var(--bark), var(--bevel-hi), var(--bevel-lo), 0 14px 22px rgba(20, 8, 2, 0.35);

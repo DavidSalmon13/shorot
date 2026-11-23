@@ -383,6 +383,28 @@
   align-self: end;
 }
 
+/* Room for the rules "?" so a long name doesn't run under it. */
+:where(:root[data-theme="afterglow"]) .game-tile {
+  padding-right: 1.7rem;
+}
+
+:where(:root[data-theme="afterglow"]) .game-tile-help {
+  top: 7px;
+  right: 7px;
+  width: 22px;
+  height: 22px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--ag-line);
+}
+
+:where(:root[data-theme="afterglow"]) .game-tile-help:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+}
+
 :where(:root[data-theme="afterglow"]) .game-tile-sub {
   font-size: 0.72rem;
   font-weight: 500;
