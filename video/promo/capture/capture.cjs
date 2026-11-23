@@ -40,7 +40,9 @@ async function startServer() {
 async function joinPlayers(browser, count) {
   const pages = [];
   for (const name of NAMES.slice(0, count)) {
-    const ctx = await browser.newContext({ ...devices['iPhone 13'] });
+    // Full 390x844 screen (as the installed app shows it): the device profile alone leaves room for
+    // Safari's toolbars (390x664), which wouldn't match the trailer's phone frames.
+    const ctx = await browser.newContext({ ...devices['iPhone 13'], viewport: { width: 390, height: 844 } });
     await ctx.addInitScript((css) => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
