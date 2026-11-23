@@ -83,3 +83,9 @@ npm test
 ```
 
 300+ tests cover each game's server-side rules, the lobby, ratings and the admin API. They run on every push and pull request via GitHub Actions.
+
+## Promo video
+
+`video/promo/` builds a 30-second trailer from real screenshots of the app, using
+[HyperFrames](https://github.com/heygen-com/hyperframes) by HeyGen (Apache-2.0). It's a dev-only
+tool with its own `package.json`. See [`video/promo/README.md`](video/promo/README.md).

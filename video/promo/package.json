@@ -1,0 +1,19 @@
+{
+  "name": "shorot-promo",
+  "private": true,
+  "description": "Shorot promo trailer, rendered with HyperFrames. Dev-only: never deployed.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "capture": "node capture/capture.cjs",
+    "preview": "hyperframes preview",
+    "check": "hyperframes check",
+    "render": "hyperframes render . -o renders/shorot-promo.mp4 --quality delivery",
+    "render:draft": "hyperframes render . -o renders/shorot-promo-draft.mp4 --quality draft"
+  },
+  "devDependencies": {
+    "hyperframes": "0.9.86",
+    "playwright": "1.63.0"
+  }
+}

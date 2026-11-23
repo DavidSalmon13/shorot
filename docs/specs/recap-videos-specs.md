@@ -1,6 +1,6 @@
 # Recap Videos (HyperFrames) — Specs
 
-**Status: draft for review.** Nothing here is built yet.
+**Status: draft for review.** Phase 1 (the promo trailer, `video/promo/`) is built. Phase 2 is not started.
 
 At the end of a game, Shorot renders a short **recap video** for the room: the game, the winner, the
 scoreboard and one or two highlights of what happened ("Noa was the imposter, the word was *Pizza*").
@@ -40,9 +40,9 @@ the template uses `textContent`. Emoji rendered correctly.
 - New top-level folder `video/promo/` with its **own** `package.json`, which lists `hyperframes`
   (exact version) and `gsap` as dependencies. The app's root `package.json` doesn't change, so
   production installs and the app's Node ≥ 18 minimum are unaffected.
-- Content: about 30 s, portrait. It opens on the logo, then shows one 3–4 s beat per game using real
-  phone screenshots captured with the `/verify` headless-browser flow, then ends on "Join at
-  imposter.shorots.com". A second landscape render is for the README and desktop.
+- Content: 30 s, portrait. It opens on the logo, shows how players join, then one 2.4 s beat for each of
+  7 games, using real phone screenshots captured by `npm run capture` (Playwright plus an offline
+  OpenAI stub), and ends on "imposter.shorots.com". A landscape cut is a possible follow-up.
 - Commands: `cd video/promo && npm i && npm run preview` (opens the HyperFrames studio) and
   `npm run render`. Output goes to `video/promo/renders/`, which is git-ignored. The finished MP4 is
   committed only if it's small enough, or uploaded as a GitHub release asset.

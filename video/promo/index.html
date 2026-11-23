@@ -1,0 +1,240 @@
+<!doctype html>
+<!--
+  Shorot promo trailer: 30 s, portrait 1080x1920. Rendered with HyperFrames (Apache-2.0, by HeyGen):
+  every element with data-start/data-duration is shown only inside that window, and the paused GSAP
+  timeline at the bottom is what the renderer seeks frame by frame.
+
+  Scenes: intro (0-3.2) -> join (3.2-6.4) -> 7 game beats of 2.4 s (6.4-23.2) -> outro (23.2-30).
+  Screenshots come from `npm run capture` (assets/shots/). Colours are the app's Afterglow theme.
+-->
+<html lang="en" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      /* Sora (SIL Open Font License), the app's Afterglow display face, bundled so renders are offline. */
+      @font-face { font-family: 'Sora'; src: url('assets/fonts/sora-latin.woff2') format('woff2'); font-weight: 100 800; }
+      :root {
+        --bg: #0a0a12;
+        --ink: #f4f2ff;
+        --muted: #b9b4d6;
+        --accent: #c6ff4a;
+        --font: 'Sora', sans-serif;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; font-family: var(--font); color: var(--ink); }
+
+      /* Afterglow-style ground: two slow-drifting colour glows behind everything. */
+      .glow { position: absolute; border-radius: 50%; filter: blur(140px); opacity: 0.55; }
+      #glow-a { width: 900px; height: 900px; left: -300px; top: -200px; background: #6d28d9; }
+      #glow-b { width: 800px; height: 800px; right: -320px; bottom: -160px; background: #0e7490; }
+
+      .scene { position: absolute; inset: 0; }
+      .center { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+
+      /* Intro */
+      #logo { width: 720px; }
+      .tagline { margin-top: 56px; font-size: 60px; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; }
+      .tagline em { font-style: normal; color: var(--accent); }
+
+      /* Phone frame around a 390x844 screenshot (rendered at 1170x2532). Keep the inner screen at that
+         shape, height = (width - 2 * padding) * 844 / 390 + 2 * padding, or object-fit crops its sides. */
+      .phone {
+        position: absolute; left: 50%; width: 520px; height: 1088px; margin-left: -260px;
+        border-radius: 64px; padding: 16px; background: #16141f;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16), 0 40px 120px rgba(0, 0, 0, 0.7);
+      }
+      .phone img { display: block; width: 100%; height: 100%; border-radius: 50px; object-fit: cover; object-position: top; }
+
+      /* Game beats: caption on top, phone below. */
+      .caption { position: absolute; top: 330px; left: 150px; right: 150px; text-align: center; }
+      .game-name { font-size: 96px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+      .game-line { margin-top: 20px; font-size: 36px; font-weight: 500; color: var(--muted); }
+      .beat .phone { top: 600px; }
+      .tag { display: inline-block; width: 22px; height: 22px; border-radius: 50%; margin-right: 22px; vertical-align: middle; }
+
+      /* Join scene */
+      #join .phone { top: 640px; }
+      .code {
+        position: absolute; top: 560px; left: 50%; transform: translateX(-50%); z-index: 2;
+        padding: 22px 54px; border-radius: 999px; background: var(--accent); color: #0a0a12;
+        font-size: 64px; font-weight: 800; letter-spacing: 0.3em; text-indent: 0.3em; white-space: nowrap;
+      }
+
+      /* Imposter shows two phones side by side. */
+      .duo .phone { width: 400px; height: 833px; margin-left: 0; padding: 14px; border-radius: 58px; }
+      .duo .phone img { border-radius: 46px; }
+      .duo .left { left: 120px; top: 660px; }
+      .duo .right { left: 560px; top: 620px; }
+
+      /* Outro */
+      .fan { position: absolute; left: 0; right: 0; top: 470px; height: 560px; }
+      .fan .phone { width: 230px; height: 475px; margin-left: -115px; padding: 10px; border-radius: 42px; top: 0; }
+      .fan .phone img { border-radius: 34px; }
+      #outro-text { position: absolute; left: 150px; right: 150px; top: 1010px; }
+      .big { font-size: 76px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+      .url {
+        display: inline-block; margin-top: 44px; padding: 22px 48px; border-radius: 999px;
+        background: var(--accent); color: #0a0a12; font-size: 44px; font-weight: 800;
+      }
+      #outro-logo { position: absolute; top: 320px; left: 50%; width: 360px; margin-left: -180px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="30" data-width="1080" data-height="1920">
+      <div id="glow-a" class="glow clip" data-start="0" data-duration="30" data-track-index="0"></div>
+      <div id="glow-b" class="glow clip" data-start="0" data-duration="30" data-track-index="0"></div>
+
+      <!-- 0-3.2 Intro -->
+      <div id="intro" class="scene center clip" data-start="0" data-duration="3.2" data-track-index="1">
+        <img id="logo" src="assets/logo.png" alt="Shorot" />
+        <div class="tagline">Party games for<br /><em>the same room.</em></div>
+      </div>
+
+      <!-- 3.2-6.4 Join -->
+      <div id="join" class="scene clip" data-start="3.2" data-duration="3.2" data-track-index="1">
+        <div class="caption">
+          <div class="game-name" style="font-size: 76px">Everyone joins<br />from their phone</div>
+        </div>
+        <div class="code">K7QZ</div>
+        <div class="phone"><img src="assets/shots/lobby.png" alt="" /></div>
+      </div>
+
+      <!-- 6.4-23.2 Game beats, 2.4 s each -->
+      <div id="b-imposter" class="scene beat duo clip" data-start="6.4" data-duration="2.4" data-track-index="1">
+        <div class="caption">
+          <div class="game-name"><span class="tag" style="background: #d946ef"></span>Imposter</div>
+          <div class="game-line">One of you doesn't know the word.</div>
+        </div>
+        <div class="phone left"><img src="assets/shots/imposter-word.png" alt="" /></div>
+        <div class="phone right"><img src="assets/shots/imposter-imposter.png" alt="" /></div>
+      </div>
+
+      <div id="b-codenames" class="scene beat clip" data-start="8.8" data-duration="2.4" data-track-index="1">
+        <div class="caption">
+          <div class="game-name"><span class="tag" style="background: #ff5470"></span>Codenames</div>
+          <div class="game-line">Two teams. One-word clues.</div>
+        </div>
+        <div class="phone"><img src="assets/shots/codenames.png" alt="" /></div>
+      </div>
+
+      <div id="b-tenseconds" class="scene beat clip" data-start="11.2" data-duration="2.4" data-track-index="1">
+        <div class="caption">
+          <div class="game-name"><span class="tag" style="background: #fb923c"></span>10 Seconds</div>
+          <div class="game-line">Stop the clock at exactly 10.000.</div>
+        </div>
+        <div class="phone"><img src="assets/shots/tenseconds.png" alt="" /></div>
+      </div>
+
+      <div id="b-menifot" class="scene beat clip" data-start="13.6" data-duration="2.4" data-track-index="1">
+        <div class="caption">
+          <div class="game-name"><span class="tag" style="background: #14b8a6"></span>Menifot</div>
+          <div class="game-line">Split your hand across three boards.</div>
+        </div>
+        <div class="phone"><img src="assets/shots/menifot.png" alt="" /></div>
+      </div>
+
+      <div id="b-warfront" class="scene beat clip" data-start="16" data-duration="2.4" data-track-index="1">
+        <div class="caption">
+          <div class="game-name"><span class="tag" style="background: #ef4444"></span>Warfront</div>
+          <div class="game-line">Real-time strategy, team vs team.</div>
+        </div>
+        <div class="phone"><img src="assets/shots/warfront-battle.png" alt="" /></div>
+      </div>
+
+      <div id="b-bluff" class="scene beat clip" data-start="18.4" data-duration="2.4" data-track-index="1">
+        <div class="caption">
+          <div class="game-name"><span class="tag" style="background: #22c55e"></span>Bluff</div>
+          <div class="game-line">Real cards dealt to every phone.</div>
+        </div>
+        <div class="phone"><img src="assets/shots/bluff.png" alt="" /></div>
+      </div>
+
+      <div id="b-allinorfold" class="scene beat clip" data-start="20.8" data-duration="2.4" data-track-index="1">
+        <div class="caption">
+          <div class="game-name" style="font-size: 80px"><span class="tag" style="background: #eab308"></span>All-In or Fold</div>
+          <div class="game-line">Shove everything, or walk away.</div>
+        </div>
+        <div class="phone"><img src="assets/shots/allinorfold.png" alt="" /></div>
+      </div>
+
+      <!-- 23.2-30 Outro -->
+      <div id="outro" class="scene clip" data-start="23.2" data-duration="6.8" data-track-index="1">
+        <div class="fan">
+          <div class="phone f0" style="left: 26%"><img src="assets/shots/codenames.png" alt="" /></div>
+          <div class="phone f4" style="left: 74%"><img src="assets/shots/allinorfold.png" alt="" /></div>
+          <div class="phone f1" style="left: 38%"><img src="assets/shots/warfront-battle.png" alt="" /></div>
+          <div class="phone f3" style="left: 62%"><img src="assets/shots/bluff.png" alt="" /></div>
+          <div class="phone f2" style="left: 50%"><img src="assets/shots/imposter-imposter.png" alt="" /></div>
+        </div>
+        <div id="outro-text" class="center">
+          <div class="big">9 games.<br />One room.</div>
+          <div class="url">imposter.shorots.com</div>
+        </div>
+        <img id="outro-logo" src="assets/logo.png" alt="Shorot" />
+      </div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      // Background glows drift the whole film.
+      tl.to('#glow-a', { x: 260, y: 520, duration: 30, ease: 'sine.inOut' }, 0);
+      tl.to('#glow-b', { x: -240, y: -620, duration: 30, ease: 'sine.inOut' }, 0);
+
+      // Intro
+      tl.fromTo('#logo', { scale: 0.85 }, { scale: 1, duration: 0.8, ease: 'back.out(1.8)' }, 0);
+      tl.from('#intro .tagline', { y: 60, opacity: 0, duration: 0.6, ease: 'power3.out' }, 0.5);
+      tl.to('#intro', { opacity: 0, scale: 1.06, duration: 0.35, ease: 'power2.in' }, 2.85);
+
+      // Join
+      tl.from('#join .caption', { y: -40, opacity: 0, duration: 0.5, ease: 'power3.out' }, 3.25);
+      tl.from('#join .phone', { y: 700, duration: 0.8, ease: 'power3.out' }, 3.3);
+      tl.from('#join .code', { scale: 0, duration: 0.5, ease: 'back.out(2.2)' }, 3.9);
+      tl.to('#join', { x: -1080, duration: 0.35, ease: 'power2.in' }, 6.05);
+
+      // Each game beat: caption drops in, phone swings in from the right, everything exits left.
+      const beats = ['imposter', 'codenames', 'tenseconds', 'menifot', 'warfront', 'bluff', 'allinorfold'];
+      beats.forEach((id, i) => {
+        const t = 6.4 + i * 2.4;
+        const sel = `#b-${id}`;
+        tl.from(`${sel} .caption`, { y: -50, opacity: 0, duration: 0.45, ease: 'power3.out' }, t + 0.05);
+        if (id === 'imposter') {
+          tl.from(`${sel} .left`, { x: -700, rotation: -12, duration: 0.6, ease: 'power3.out' }, t);
+          tl.from(`${sel} .right`, { x: 700, rotation: 12, duration: 0.6, ease: 'power3.out' }, t + 0.15);
+          tl.to(`${sel} .right`, { scale: 1.04, duration: 0.5, yoyo: true, repeat: 1, ease: 'sine.inOut' }, t + 1.0);
+        } else {
+          tl.from(`${sel} .phone`, { x: 900, rotation: 8, duration: 0.6, ease: 'power3.out' }, t);
+          tl.to(`${sel} .phone`, { y: -40, duration: 1.6, ease: 'none' }, t + 0.6);
+        }
+        tl.to(sel, { x: -1080, duration: 0.3, ease: 'power2.in' }, t + 2.1);
+      });
+
+      // Outro: phones fan out, then the line and URL.
+      const fan = [
+        ['.f2', 0, 0],
+        ['.f1', -8, 40],
+        ['.f3', 8, 40],
+        ['.f0', -15, 100],
+        ['.f4', 15, 100],
+      ];
+      fan.forEach(([cls, rot, y], i) => {
+        tl.fromTo(
+          `#outro ${cls}`,
+          { y: 1300, rotation: 0 },
+          { y, rotation: rot, duration: 0.8, ease: 'power3.out' },
+          23.3 + i * 0.08
+        );
+      });
+      tl.from('#outro .big', { y: 60, opacity: 0, duration: 0.6, ease: 'power3.out' }, 24.1);
+      tl.from('#outro .url', { scale: 0.5, opacity: 0, duration: 0.6, ease: 'back.out(2)' }, 24.7);
+      tl.to('#outro .url', { scale: 1.05, duration: 0.6, yoyo: true, repeat: 3, ease: 'sine.inOut' }, 25.6);
+      tl.from('#outro-logo', { opacity: 0, y: 30, duration: 0.6, ease: 'power2.out' }, 25.2);
+
+      window.__timelines['main'] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
