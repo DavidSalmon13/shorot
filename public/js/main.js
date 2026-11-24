@@ -25,7 +25,7 @@ import { initSuggestionBox } from './shared/suggestionBox.js';
 import { initRecaps, refreshRecapStatus } from './shared/recaps.js';
 import { applyCosmetics, applyMyBoardSkin } from './shared/cosmetics.js';
 import { initFitTileNames } from './shared/fitTileNames.js';
-import { initGameRules } from './shared/gameRules.js';
+import { initGameRules, showRulesFirstTime } from './shared/gameRules.js';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -917,6 +917,7 @@ socket.on('hostUpdate', ({ host }) => {
 socket.on('gameChosen', ({ game }) => {
   currentGame = game;
   updateAiofTile();
+  showRulesFirstTime(game);
 });
 
 socket.on('generating', ({ game }) => {

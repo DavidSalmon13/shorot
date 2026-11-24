@@ -79,6 +79,34 @@ function showRules({ title, text }) {
   okBtn.focus();
 }
 
+// The first time a player's phone enters each game, its rules open by themselves (the same
+// popup the "?" shows). Seen games are remembered per phone in localStorage, so a new phone,
+// a private window or cleared site data shows them once more - harmless.
+const SEEN_KEY = 'shorotRulesSeen';
+
+function readSeen() {
+  try {
+    const list = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+/** Opens `gameId`'s rules if this phone hasn't seen them yet (gameId as in 'gameChosen'). */
+export function showRulesFirstTime(gameId) {
+  const rules = RULES[`choose-${gameId}-btn`];
+  if (!rules) return;
+  const seen = readSeen();
+  if (seen.includes(gameId)) return;
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...seen, gameId]));
+  } catch (e) {
+    // Storage blocked: still show the rules, they just may show again next time.
+  }
+  showRules(rules);
+}
+
 export function initGameRules() {
   for (const [id, rules] of Object.entries(RULES)) {
     const tile = document.getElementById(id);
