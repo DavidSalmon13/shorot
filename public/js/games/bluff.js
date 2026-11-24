@@ -9,6 +9,10 @@ import { setTokenBalance } from '../shared/tokens.js';
 import { setInGameShop } from '../shared/storeActions.js';
 import { applyCosmetics } from '../shared/cosmetics.js';
 import { sfx, haptics, haptic } from '../fx.js';
+import { requestBackToLobby } from '../shared/backToLobby.js';
+
+// Last phase seen, so Back to Lobby only asks for confirmation mid-match.
+let backPhase = null;
 
 const BF_SUIT_SYMBOL = { s: '♠', h: '♥', d: '♦', c: '♣' };
 const BF_SUIT_CLASS = { s: 'bf-suit-s', h: 'bf-suit-h', d: 'bf-suit-d', c: 'bf-suit-c' };
@@ -1311,6 +1315,7 @@ function applyGameover(data) {
 }
 
 function applyState(data) {
+  backPhase = data.phase;
   ctx.setHost(data.host);
   bfSeatingError.textContent = '';
   bfResetBtn.classList.toggle('hidden', !data.canResetGame);
@@ -1447,9 +1452,7 @@ export const Bluff = {
       });
     });
 
-    bfBackBtn.addEventListener('click', () => {
-      socket.emit('backToLobby', () => {});
-    });
+    bfBackBtn.addEventListener('click', () => requestBackToLobby(socket, backPhase));
 
     bfRevealClose.addEventListener('click', bfRevealHide);
     document.addEventListener('keydown', (e) => {

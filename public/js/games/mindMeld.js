@@ -3,6 +3,10 @@
  */
 
 import { renderScoreboard } from '../shared/scoreboard.js';
+import { requestBackToLobby } from '../shared/backToLobby.js';
+
+// Last phase seen, so Back to Lobby only asks for confirmation mid-match.
+let backPhase = null;
 
 const mmReadyPanel = document.getElementById('mm-ready-panel');
 const mmPlayerList = document.getElementById('mm-player-list');
@@ -108,6 +112,7 @@ function renderMmRevealedRow(r, kind, targetIsZero) {
 }
 
 function applyState(data) {
+  backPhase = data.phase;
   ctx.setHost(data.host);
   mmError.textContent = '';
 
@@ -269,9 +274,7 @@ export const MindMeld = {
       });
     });
 
-    mmBackBtn.addEventListener('click', () => {
-      socket.emit('backToLobby', () => {});
-    });
+    mmBackBtn.addEventListener('click', () => requestBackToLobby(socket, backPhase));
 
     socket.on('mmState', (data) => {
       applyState(data);

@@ -9,6 +9,10 @@
  */
 
 import { renderScoreboard } from '../shared/scoreboard.js';
+import { requestBackToLobby } from '../shared/backToLobby.js';
+
+// Last phase seen, so Back to Lobby only asks for confirmation mid-match.
+let backPhase = null;
 
 const AIOF_SUIT_SYMBOL = { s: '♠', h: '♥', d: '♦', c: '♣' };
 const AIOF_SUIT_CLASS = { s: 'aiof-suit-s', h: 'aiof-suit-h', d: 'aiof-suit-d', c: 'aiof-suit-c' };
@@ -532,6 +536,7 @@ function render(data) {
 }
 
 function applyState(data) {
+  backPhase = data.phase;
   lastData = data;
   ctx.setHost(data.host);
   aiofError.textContent = '';
@@ -545,9 +550,7 @@ export const AllInOrFold = {
     ctx = nextCtx;
     const { socket } = ctx;
 
-    aiofBackBtn.addEventListener('click', () => {
-      socket.emit('backToLobby', () => {});
-    });
+    aiofBackBtn.addEventListener('click', () => requestBackToLobby(socket, backPhase));
 
     aiofLeaveBtn.addEventListener('click', () => {
       aiofError.textContent = '';

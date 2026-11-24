@@ -2,6 +2,10 @@
 
 import { renderScoreboard } from '../shared/scoreboard.js';
 import { selectChip } from '../shared/dom.js';
+import { requestBackToLobby } from '../shared/backToLobby.js';
+
+// Last phase seen, so Back to Lobby only asks for confirmation mid-match.
+let backPhase = null;
 
 const mtSetupPanel = document.getElementById('mt-setup-panel');
 const mtModeBtns = Array.from(document.querySelectorAll('.mt-mode-btn'));
@@ -393,6 +397,7 @@ function renderMatch(data) {
 }
 
 function applyState(data) {
+  backPhase = data.phase;
   if (data.phase === 'generating') {
     ctx.showGenerating('musictimeline');
     return;
@@ -497,9 +502,7 @@ export const MusicTimeline = {
       });
     });
 
-    mtBackBtn.addEventListener('click', () => {
-      socket.emit('backToLobby', () => {});
-    });
+    mtBackBtn.addEventListener('click', () => requestBackToLobby(socket, backPhase));
 
     socket.on('mtTeamSelectUpdate', (data) => {
       renderTeamSelect(data);

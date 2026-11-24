@@ -3,6 +3,7 @@
  */
 
 import { renderScoreboard } from '../shared/scoreboard.js';
+import { requestBackToLobby } from '../shared/backToLobby.js';
 
 let ctx = null;
 
@@ -243,9 +244,8 @@ function bindButtons() {
     });
   });
 
-  playAgainBtn.addEventListener('click', () => {
-    ctx.socket.emit('backToLobby', () => {});
-  });
+  // The game screen's Back to Lobby is only shown while a round is in play.
+  playAgainBtn.addEventListener('click', () => requestBackToLobby(ctx.socket, 'playing'));
 
   votingBackBtn.addEventListener('click', () => {
     ctx.socket.emit('backToLobby', () => {});

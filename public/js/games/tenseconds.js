@@ -4,6 +4,10 @@
 
 import { formatTsTime, formatTsDistance } from '../shared/format.js';
 import { renderScoreboard } from '../shared/scoreboard.js';
+import { requestBackToLobby } from '../shared/backToLobby.js';
+
+// Last phase seen, so Back to Lobby only asks for confirmation mid-match.
+let backPhase = null;
 
 let ctx = null;
 
@@ -286,9 +290,7 @@ function bindButtons() {
     });
   });
 
-  tsBackBtn.addEventListener('click', () => {
-    ctx.socket.emit('backToLobby', () => {});
-  });
+  tsBackBtn.addEventListener('click', () => requestBackToLobby(ctx.socket, backPhase));
 }
 
 export const TensSeconds = {
@@ -303,6 +305,7 @@ export const TensSeconds = {
   },
 
   applyState(data) {
+    backPhase = data.phase;
     applyTensSecondsState(data);
   },
 

@@ -3,6 +3,10 @@
  */
 
 import { renderScoreboard } from '../shared/scoreboard.js';
+import { requestBackToLobby } from '../shared/backToLobby.js';
+
+// Last phase seen, so Back to Lobby only asks for confirmation mid-match.
+let backPhase = null;
 
 const MF_SUIT_SYMBOL = { s: '♠', h: '♥', d: '♦', c: '♣' };
 const MF_SUIT_CLASS = { s: 'mf-suit-s', h: 'mf-suit-h', d: 'mf-suit-d', c: 'mf-suit-c' };
@@ -445,6 +449,7 @@ function renderMfAllocating(data) {
 }
 
 function applyState(data) {
+  backPhase = data.phase;
   ctx.setHost(data.host);
   mfError.textContent = '';
 
@@ -745,9 +750,7 @@ export const Menifot = {
       });
     });
 
-    mfBackBtn.addEventListener('click', () => {
-      socket.emit('backToLobby', () => {});
-    });
+    mfBackBtn.addEventListener('click', () => requestBackToLobby(socket, backPhase));
 
     socket.on('menifotState', (data) => {
       applyState(data);
