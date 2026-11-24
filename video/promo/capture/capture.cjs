@@ -19,7 +19,9 @@ const ROOT = path.resolve(__dirname, '../../..');
 const OUT = path.resolve(__dirname, '../assets/shots');
 const PORT = 3517;
 const URL = `http://localhost:${PORT}/`;
-const HIDE = '#reaction-row, #store-action-row, #sticker-dropdown, #install-app-btn, #lobby-install-btn { display: none !important; }';
+// Hide the reactions row (real-people sticker photos) and the install prompts. The sticker
+// picker and the in-game shop tray are left alone so the sign-up takes below can open them.
+const HIDE = '#reaction-row, #install-app-btn, #lobby-install-btn { display: none !important; }';
 const NAMES = ['Dana', 'Avi', 'Noa', 'Ron'];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -74,6 +76,7 @@ async function clickIfVisible(page, selector) {
 }
 
 // One entry per take: how many players, and how to play from the lobby to the shot.
+// The trailer shows only the three headline games, then three "sign up to unlock" perks.
 const TAKES = {
   async lobby([host]) {
     await shot(host, 'lobby');
@@ -102,32 +105,6 @@ const TAKES = {
     await sleep(2500);
     await shot(pages[0], 'codenames');
   },
-  async tenseconds(pages) {
-    await pages[0].click('#choose-tenseconds-btn');
-    await sleep(800);
-    await pages[0].click('#ts-start-btn');
-    await sleep(4000);
-    await shot(pages[1], 'tenseconds');
-  },
-  async menifot(pages) {
-    await pages[0].click('#choose-menifot-btn');
-    await sleep(800);
-    await pages[0].click('#mf-start-btn');
-    await sleep(2000);
-    await shot(pages[0], 'menifot');
-  },
-  async warfront(pages) {
-    await pages[0].click('#choose-warfront-btn');
-    await sleep(1000);
-    for (const [i, p] of pages.entries()) await clickIfVisible(p, i % 2 ? '#wf-join-blue' : '#wf-join-red');
-    for (const p of pages.slice(0, 2)) await clickIfVisible(p, '#wf-captain-btn');
-    for (const [i, p] of pages.entries()) await p.locator('.race').nth(i % 3).click();
-    await sleep(800);
-    await shot(pages[0], 'warfront-lobby');
-    await pages[0].click('#wf-start-btn');
-    await sleep(12000);
-    await shot(pages[0], 'warfront-battle');
-  },
   async bluff(pages) {
     await pages[0].click('#choose-bluff-btn');
     await sleep(800);
@@ -135,23 +112,76 @@ const TAKES = {
     await sleep(2500);
     await shot(pages[0], 'bluff');
   },
-  async allinorfold(pages) {
-    await pages[0].click('#choose-allinorfold-btn');
-    await sleep(800);
-    for (const p of pages.slice(1)) await clickIfVisible(p, '#choose-allinorfold-btn');
-    await sleep(400);
-    for (const [i, p] of pages.entries()) {
-      await clickIfVisible(p, `.aiof-seat-slot-${i}`);
-      await sleep(400);
-      await clickIfVisible(p, '#aiof-buyin-confirm-btn');
-      await sleep(400);
-    }
-    await pages[0].click('#aiof-start-btn');
-    await sleep(3000);
-    await shot(pages[1], 'allinorfold');
+
+  // --- "Sign up to unlock" perks. These are account features (Player Card, Store, custom
+  // stickers) that real Google sign-in gates, which the capture can't automate. But each is a
+  // client-side builder, so we drive it directly over the lobby with representative demo data
+  // (and no real faces): exactly what a signed-in player would see.
+  async stickers([host]) {
+    // The real picker is an inline dropdown low in the lobby, and its tiles are photos of real
+    // people - neither frames well nor belongs in a public trailer. So we show an on-brand,
+    // centred version of the same choice: a prominent "upload your photo" tile plus emoji
+    // options, which is exactly what the feature offers (minus the real faces).
+    await host.evaluate(() => {
+      const emojis = ['😎', '🥳', '🤠', '🦊', '🐼', '🐸', '🦄', '🐯'];
+      const panel = document.createElement('div');
+      panel.style.cssText =
+        'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px;padding:48px;font-family:Sora,sans-serif;background:radial-gradient(circle at 50% 36%, #241f3a, #0a0a12 72%)';
+      const title = document.createElement('div');
+      title.textContent = 'Pick your sticker';
+      title.style.cssText = 'font-weight:800;font-size:44px;color:#f4f2ff;letter-spacing:-0.02em';
+      const grid = document.createElement('div');
+      grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:22px;width:100%;max-width:380px';
+      const tileStyle =
+        'aspect-ratio:1;border-radius:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 28px rgba(0,0,0,.45)';
+      const add = document.createElement('div');
+      add.textContent = '＋';
+      add.style.cssText = `${tileStyle};background:rgba(198,255,74,0.16);border:3px dashed #c6ff4a;color:#c6ff4a;font-size:88px;font-weight:700`;
+      grid.appendChild(add);
+      emojis.forEach((e) => {
+        const d = document.createElement('div');
+        d.textContent = e;
+        d.style.cssText = `${tileStyle};background:#2a2440;font-size:72px`;
+        grid.appendChild(d);
+      });
+      panel.append(title, grid);
+      document.body.appendChild(panel);
+    });
+    await sleep(300);
+    await shot(host, 'stickers');
+  },
+  async card([host]) {
+    // Render a real FIFA-style rating card (public/js/shared/cardRender.js) centred over a
+    // dark glow, with demo stats - the same element the lobby's click-to-view popup shows.
+    await host.evaluate(async () => {
+      const mod = await import('/js/shared/cardRender.js');
+      const user = { name: 'Dana', sticker: null };
+      const card = { ratings: { ovr: 92, tier: 'gold', stats: { SPD: 95, COM: 88, STR: 81, TAC: 93, NRV: 86, DEC: 90 } } };
+      const el = mod.buildRatingCard(user, card);
+      el.style.transform = 'scale(1.4)';
+      const wrap = document.createElement('div');
+      wrap.id = 'promo-card-wrap';
+      wrap.style.cssText =
+        'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 38%, #2c2550, #0a0a12 70%)';
+      wrap.appendChild(el);
+      document.body.appendChild(wrap);
+    });
+    await sleep(500);
+    await shot(host, 'card');
+  },
+  async gag([host]) {
+    // Fire a real buyable gag (public/js/shared/storeFx.js) over the lobby and catch it
+    // mid-splat - the same animation a signed-in player sets off from the shop.
+    await host.evaluate(async () => {
+      const mod = await import('/js/shared/storeFx.js');
+      const layer = document.getElementById('store-fx-layer');
+      mod.playStoreFx(layer, { itemId: 'pie', fromName: 'Avi', targetName: 'Dana' });
+    });
+    await sleep(900);
+    await shot(host, 'gag');
   },
 };
-const PLAYERS = { menifot: 3 };
+const PLAYERS = {};
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -163,18 +193,24 @@ const PLAYERS = { menifot: 3 };
   for (const [name, take] of Object.entries(TAKES)) {
     if (only.length && !only.includes(name)) continue;
     console.log(name);
-    const server = await startServer();
-    try {
-      const pages = await joinPlayers(browser, PLAYERS[name] || 4);
-      await take(pages);
-      await Promise.all(pages.map((p) => p.context().close()));
-    } catch (err) {
-      failed++;
-      console.error(`  FAILED: ${err.message.split('\n')[0]}`);
-    } finally {
-      server.kill();
-      await sleep(300);
+    // Each take boots its own fresh server; booting 7 in a row under browser load is
+    // occasionally flaky on the join handshake, so give each take a second attempt.
+    let ok = false;
+    for (let attempt = 1; attempt <= 2 && !ok; attempt++) {
+      const server = await startServer();
+      try {
+        const pages = await joinPlayers(browser, PLAYERS[name] || 4);
+        await take(pages);
+        await Promise.all(pages.map((p) => p.context().close()));
+        ok = true;
+      } catch (err) {
+        console.error(`  ${attempt < 2 ? 'retrying' : 'FAILED'}: ${err.message.split('\n')[0]}`);
+      } finally {
+        server.kill();
+        await sleep(400);
+      }
     }
+    if (!ok) failed++;
   }
   await browser.close();
   process.exit(failed ? 1 : 0);
