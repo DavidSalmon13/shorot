@@ -159,6 +159,10 @@ called are actually there among **every active player's cards pooled together**.
   (`BF_CHECK_COUNTDOWN_MS`), then the verdict: "It's there!" or "Not there!". The server
   computes the answer only when the countdown ends, and the payload carries `present: null`
   until then, so nobody can peek early.
+- The check panel on the table stays short: the called cards (plain while counting down,
+  then green = there / red = missing) and the strongest hand below - the panel's green/red
+  colour is the verdict. The wording ("It's there!", who loses) lives in the full-screen
+  reveal only.
 - The verdict is informational only — the host still taps the round's loser as before
   (seat-tapping is disabled while a countdown runs). The host may check other cards after
   a verdict (e.g. a mis-entry). The check clears when the next round is dealt.

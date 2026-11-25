@@ -49,7 +49,6 @@ const bfScoreboard = document.getElementById('bf-scoreboard');
 const bfResetBtn = document.getElementById('bf-reset-btn');
 const bfResetError = document.getElementById('bf-reset-error');
 const bfCheckResult = document.getElementById('bf-check-result');
-const bfCheckLabel = document.getElementById('bf-check-label');
 const bfCheckCountdown = document.getElementById('bf-check-countdown');
 const bfCheckCards = document.getElementById('bf-check-cards');
 const bfCheckStrongest = document.getElementById('bf-check-strongest');
@@ -62,7 +61,6 @@ const bfCheckCancelBtn = document.getElementById('bf-check-cancel-btn');
 const bfCheckSubmitBtn = document.getElementById('bf-check-submit-btn');
 const bfCheckBuilderTitle = document.getElementById('bf-check-builder-title');
 const bfCheckMarkBtn = document.getElementById('bf-check-mark-btn');
-const bfCheckLoserEl = document.getElementById('bf-check-loser');
 const bfCallOpenBtn = document.getElementById('bf-call-open-btn');
 const bfCallOpenLabel = document.getElementById('bf-call-open-label');
 const bfEditOpenBtn = document.getElementById('bf-edit-open-btn');
@@ -137,7 +135,6 @@ let bfDeferredSeats = null; // [seats, opts] for a render that arrived mid seat-
 let bfBuilderOpen = false;
 let bfBuilderMode = 'check'; // 'check' = host's check, 'call' = a player's bluff call
 let bfPick = [];
-let bfCheckLoser = null; // revealed bluff call: who should lose (null for host checks)
 let bfLastTableData = null; // last table payload, so Cancel can re-render the check controls
 // Local 3-2-1 countdown for the current check, keyed by check id so re-renders don't restart it.
 let bfCheckShownId = null;
@@ -531,10 +528,12 @@ function stopCheckCountdown() {
   bfCheckTimer = null;
 }
 
+/** Countdown number while the check runs; once revealed the panel's green/red colour and
+ * the cards' ✓/✗ say it all, so the number just goes away. */
 function renderCheckCountdown() {
   bfCheckResult.classList.remove('bf-check-present', 'bf-check-absent');
   const left = Math.ceil((bfCheckRevealAt - Date.now()) / 1000);
-  bfCheckLoserEl.classList.toggle('hidden', bfCheckPresent === null || !bfCheckLoser);
+  bfCheckCountdown.classList.toggle('hidden', bfCheckPresent !== null);
   if (bfCheckPresent === null) {
     // Server reveal may land a beat after our local clock hits zero - hold on "1" until it does.
     bfCheckCountdown.textContent = String(Math.max(1, left));
@@ -542,13 +541,6 @@ function renderCheckCountdown() {
   }
   stopCheckCountdown();
   bfCheckResult.classList.add(bfCheckPresent ? 'bf-check-present' : 'bf-check-absent');
-  bfCheckCountdown.textContent = bfCheckPresent ? '✅ It\'s there!' : '❌ Not there!';
-  if (bfCheckLoser) bfCheckLoserEl.textContent = `${bfCheckLoser} loses this round`;
-}
-
-/** "Dana called bluff on Avi: 7, 7, K" for a player's call, just the cards for the host's. */
-function checkLabel(check) {
-  return check.caller ? `${check.caller} called bluff on ${check.target}: ${check.label}` : check.label;
 }
 
 function bfMakeStaticChip(text, extraClass) {
@@ -561,6 +553,7 @@ function bfMakeStaticChip(text, extraClass) {
 /** One chip per called card, green if it was there and red if it wasn't - repeats of the
  * same value can split across both (e.g. calling three 7s with only two on the table marks
  * the first two present and the third missing). */
+/** The called cards: plain while counting down, then green (there) / red (missing). */
 function renderCheckCards(perCard) {
   bfCheckCards.innerHTML = '';
   if (!perCard || !perCard.length) {
@@ -568,9 +561,8 @@ function renderCheckCards(perCard) {
     return;
   }
   perCard.forEach(({ rank, present }) => {
-    bfCheckCards.appendChild(
-      bfMakeStaticChip(bfRankText(rank), present ? 'bf-chip-present' : 'bf-chip-missing')
-    );
+    const cls = present == null ? '' : present ? 'bf-chip-present' : 'bf-chip-missing';
+    bfCheckCards.appendChild(bfMakeStaticChip(bfRankText(rank), cls));
   });
   bfCheckCards.classList.remove('hidden');
 }
@@ -606,9 +598,7 @@ function applyCheck(check, data) {
     return;
   }
   bfCheckResult.classList.remove('hidden');
-  bfCheckLabel.textContent = checkLabel(check);
   bfCheckPresent = check.present;
-  bfCheckLoser = check.suggestedLoser || null;
   if (check.id !== bfCheckShownId) {
     bfCheckShownId = check.id;
     bfCheckRevealAt = Date.now() + check.remainingMs;
@@ -618,7 +608,7 @@ function applyCheck(check, data) {
   renderCheckCountdown();
 
   if (check.present === null) {
-    bfCheckCards.classList.add('hidden');
+    renderCheckCards((check.ranks || []).map((rank) => ({ rank, present: null })));
     bfCheckStrongest.classList.add('hidden');
   } else {
     renderCheckCards(check.perCard);
