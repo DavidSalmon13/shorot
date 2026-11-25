@@ -477,17 +477,19 @@ async function playerCard({ userId, clientId }) {
   // details.place when both rows have one (10 Seconds, whose points don't separate
   // middle waves), else (won, points) like rivalries(). With no opponent at all the
   // win flag stands in. Feeds the rating card (server/ratings.js), which weights
-  // recent games most.
+  // recent games most and, for Bluff, bigger tables more (hence `opponents`).
   const { rows } = await db.query(
     `SELECT g.game_type,
             coalesce(gp.won, false)                    AS won,
             gp.points,
-            coalesce(o.placement, CASE WHEN gp.won THEN 1 ELSE 0 END)::float8 AS placement
+            coalesce(o.placement, CASE WHEN gp.won THEN 1 ELSE 0 END)::float8 AS placement,
+            coalesce(o.opponents, 0)::int              AS opponents
        FROM game_participants gp
        JOIN players p ON p.id = gp.player_id
        JOIN games g   ON g.id = gp.game_id
        LEFT JOIN LATERAL (
-         SELECT avg(CASE WHEN c.cmp > 0 THEN 1 WHEN c.cmp = 0 THEN 0.5 ELSE 0 END) AS placement
+         SELECT avg(CASE WHEN c.cmp > 0 THEN 1 WHEN c.cmp = 0 THEN 0.5 ELSE 0 END) AS placement,
+                count(*) AS opponents
            FROM (
              SELECT CASE
                       WHEN gp.details->>'place' IS NOT NULL AND t.details->>'place' IS NOT NULL
@@ -511,12 +513,15 @@ async function playerCard({ userId, clientId }) {
   let points = 0;
   for (const r of rows) {
     const g = byGame[r.game_type] ||
-      (byGame[r.game_type] = { played: 0, won: 0, points: 0, placement: 0, recent: [] });
+      (byGame[r.game_type] = { played: 0, won: 0, points: 0, placement: 0, recent: [], recentOpponents: [] });
     g.played += 1;
     if (r.won) g.won += 1;
     g.points += r.points;
     g.placement += r.placement; // summed here, averaged below
-    if (g.recent.length < RECENT_GAMES) g.recent.push(r.placement);
+    if (g.recent.length < RECENT_GAMES) {
+      g.recent.push(r.placement);
+      g.recentOpponents.push(r.opponents);
+    }
     gamesPlayed += 1;
     if (r.won) wins += 1;
     points += r.points;
@@ -531,7 +536,10 @@ async function playerCard({ userId, clientId }) {
     .filter(([, ids]) => !ids.some((id) => earned.has(id)))
     .map(([sticker]) => sticker);
   const ratings = computeRatings(byGame);
-  for (const g of Object.values(byGame)) delete g.recent; // only the rating needs it
+  for (const g of Object.values(byGame)) { // only the rating needs these
+    delete g.recent;
+    delete g.recentOpponents;
+  }
   return {
     gamesPlayed,
     wins,

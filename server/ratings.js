@@ -38,6 +38,12 @@ const PRIOR_GAMES = 3;
 // A game type's say in the overall grows with games played, up to this cap - the
 // games you actually play decide your overall, a one-off try barely moves it.
 const OVR_WEIGHT_CAP = 20;
+// Game types where a game counts in proportion to how many opponents were at the table:
+// each opponent is a head-to-head you won or lost, so winning a big table moves the
+// rating more than winning a small one. REFERENCE_OPPONENTS is the table that counts as
+// one ordinary game (2 opponents = a 3-player game); an 8-player game counts as 3.5.
+const OPPONENT_WEIGHTED = new Set(['bluff']);
+const REFERENCE_OPPONENTS = 2;
 
 const clamp = (x) => Math.min(MAX_RATING, Math.max(MIN_RATING, x));
 
@@ -53,24 +59,38 @@ function recentScores({ played, won, placement, recent }) {
 }
 
 /**
+ * How many ordinary games each of `scores` counts as: 1 each, except for an
+ * OPPONENT_WEIGHTED game type with per-game opponent counts (`recentOpponents`,
+ * parallel to `recent`), where it's opponents / REFERENCE_OPPONENTS.
+ */
+function gameSizes(g, gameType, count) {
+  const opps = g.recentOpponents;
+  if (!OPPONENT_WEIGHTED.has(gameType) || !Array.isArray(opps)) return Array(count).fill(1);
+  return Array.from({ length: count }, (_, i) =>
+    opps[i] > 0 ? opps[i] / REFERENCE_OPPONENTS : 1);
+}
+
+/**
  * 1-99 performance score for one game type the player has played at least once:
  * recency-weighted placement, shrunk toward the baseline while there are few games,
  * then mapped linearly around BASELINE.
  */
-function perf(g) {
+function perf(g, gameType) {
   if (!g || !g.played) return null;
   const scores = recentScores(g);
+  const sizes = gameSizes(g, gameType, scores.length);
   const decay = Math.pow(0.5, 1 / HALF_LIFE_GAMES);
   let sum = 0;
   let weight = 0;
   scores.forEach((s, i) => {
-    const w = Math.pow(decay, i);
+    const w = Math.pow(decay, i) * sizes[i];
     sum += s * w;
     weight += w;
   });
   const placement = sum / weight;
   const raw = BASELINE + (placement - 0.5) * SLOPE;
-  const n = scores.length;
+  // Games used, in ordinary-game units, so big tables also settle the rating faster.
+  const n = sizes.reduce((a, b) => a + b, 0);
   return clamp((raw * n + BASELINE * PRIOR_GAMES) / (n + PRIOR_GAMES));
 }
 
@@ -81,14 +101,15 @@ function tierFor(ovr) {
 }
 
 /**
- * byGame: { [gameType]: { played, won, points, placement, recent? } } (points unused).
+ * byGame: { [gameType]: { played, won, points, placement, recent?, recentOpponents? } }
+ * (points unused; recentOpponents only read for OPPONENT_WEIGHTED types).
  * Returns { ovr, tier, stats: { SPD, COM, STR, TAC, NRV, DEC } }, each an integer in
  * [1, 99].
  */
 function computeRatings(byGame) {
   const perfByGame = {};
   for (const gameType of Object.keys(GAME_STAT_WEIGHTS)) {
-    const p = perf(byGame[gameType]);
+    const p = perf(byGame[gameType], gameType);
     if (p !== null) perfByGame[gameType] = p;
   }
 

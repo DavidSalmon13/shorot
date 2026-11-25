@@ -113,6 +113,12 @@ raw       = 60 + (placement − 0.5) × 80          // 0.5→60, 0.75→80, ~0.9
 perf      = (raw × n + 60 × 3) / (n + 3)         // n = games used; clamp to [1, 99]
 ```
 
+**Bluff counts table size.** Each Bluff game is weighted by `opponents / 2` — a 3-player
+game counts as one game, an 8-player game as 3.5 — both in the recency-weighted mean
+(multiplied into each game's weight) and in `n` (the sum of those sizes). Every opponent is
+a head-to-head you won or lost, so winning a big table lifts the rating more than winning
+a small one, and going out first at a big table costs more. Other games count 1 each.
+
 Recency means a hot (or cold) streak shows within a few games instead of being buried
 in a lifetime average. The 3 "imaginary average games" stop 1 lucky win reading 99
 (it reads 70) while still letting a new game type move fast.

@@ -65,3 +65,36 @@ test('without per-game rows, the lifetime average stands in', () => {
   const { stats } = computeRatings({ bluff: { played: 8, won: 8, points: 8, placement: null } });
   assert.equal(stats.NRV, 89);
 });
+
+// Bluff byGame entry with per-game opponent counts, newest first: [[placement, opponents], ...].
+const sized = (...rows) => ({ ...games(...rows.map(([p]) => p)), recentOpponents: rows.map(([, o]) => o) });
+
+test('bluff: winning an 8-player table moves the card more than winning a 3-player one', () => {
+  const base = repeat(20, [0.5, 2]);
+  const before = computeRatings({ bluff: sized(...base) }).ovr;
+  const small = computeRatings({ bluff: sized([1, 2], ...base) }).ovr;
+  const big = computeRatings({ bluff: sized([1, 7], ...base) }).ovr;
+  assert.ok(small > before, `${before} -> ${small}`);
+  assert.ok(big - before > 2 * (small - before), `3p win +${small - before}, 8p win +${big - before}`);
+});
+
+test('bluff: going out first at a big table costs more too', () => {
+  const base = repeat(20, [0.5, 2]);
+  const before = computeRatings({ bluff: sized(...base) }).ovr;
+  const small = computeRatings({ bluff: sized([0, 2], ...base) }).ovr;
+  const big = computeRatings({ bluff: sized([0, 7], ...base) }).ovr;
+  assert.ok(before - big > 2 * (before - small), `3p loss -${before - small}, 8p loss -${before - big}`);
+});
+
+test('bluff: one 8-player win is shrunk less than one 3-player win', () => {
+  assert.equal(computeRatings({ bluff: sized([1, 2]) }).ovr, 70);
+  assert.ok(computeRatings({ bluff: sized([1, 7]) }).ovr > 70);
+});
+
+test('table size only weights bluff', () => {
+  const plain = computeRatings({ imposter: games(1, ...repeat(20, 0.5)) }).ovr;
+  const withOpps = computeRatings({
+    imposter: { ...games(1, ...repeat(20, 0.5)), recentOpponents: [7, ...repeat(20, 2)] },
+  }).ovr;
+  assert.equal(withOpps, plain);
+});
