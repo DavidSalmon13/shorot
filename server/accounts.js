@@ -18,7 +18,7 @@ const betting = require('./betting');
 const bodies = require('./bodies');
 const store = require('./store');
 const { BADGES, publicBadge } = require('./badges');
-const { computeRatings, RECENT_GAMES } = require('./ratings');
+const { computeRatings } = require('./ratings');
 const { isValidSticker } = require('./stickers');
 const { logActivity } = require('./activity');
 
@@ -476,8 +476,8 @@ async function playerCard({ userId, clientId }) {
   // instead of being diluted toward 0.5 by "ties" with your own side. Order is
   // details.place when both rows have one (10 Seconds, whose points don't separate
   // middle waves), else (won, points) like rivalries(). With no opponent at all the
-  // win flag stands in. Feeds the rating card (server/ratings.js), which weights
-  // recent games most and, for Bluff, bigger tables more (hence `opponents`).
+  // win flag stands in. Feeds the rating card (server/ratings.js), which replays the
+  // games oldest first, adding a fixed change per game (Bluff: per opponent).
   const { rows } = await db.query(
     `SELECT g.game_type,
             coalesce(gp.won, false)                    AS won,
@@ -513,15 +513,11 @@ async function playerCard({ userId, clientId }) {
   let points = 0;
   for (const r of rows) {
     const g = byGame[r.game_type] ||
-      (byGame[r.game_type] = { played: 0, won: 0, points: 0, placement: 0, recent: [], recentOpponents: [] });
+      (byGame[r.game_type] = { played: 0, won: 0, points: 0, placement: 0 });
     g.played += 1;
     if (r.won) g.won += 1;
     g.points += r.points;
     g.placement += r.placement; // summed here, averaged below
-    if (g.recent.length < RECENT_GAMES) {
-      g.recent.push(r.placement);
-      g.recentOpponents.push(r.opponents);
-    }
     gamesPlayed += 1;
     if (r.won) wins += 1;
     points += r.points;
@@ -535,11 +531,12 @@ async function playerCard({ userId, clientId }) {
   const lockedStickers = !userId || premiumUnlocked ? [] : [...BADGE_STICKERS]
     .filter(([, ids]) => !ids.some((id) => earned.has(id)))
     .map(([sticker]) => sticker);
-  const ratings = computeRatings(byGame);
-  for (const g of Object.values(byGame)) { // only the rating needs these
-    delete g.recent;
-    delete g.recentOpponents;
-  }
+  // rows are newest first; the rating replays them oldest first.
+  const ratings = computeRatings(rows.slice().reverse().map((r) => ({
+    gameType: r.game_type,
+    placement: r.placement,
+    opponents: r.opponents,
+  })));
   return {
     gamesPlayed,
     wins,

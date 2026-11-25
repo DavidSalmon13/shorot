@@ -93,9 +93,10 @@ secondary source was forced onto them.
 
 ### Rating formula
 
-Goals: a card that visibly moves after every game, with an average player in the
-low 60s, gold for clearly beating the table, and 90+ only for sustained dominance.
-Constants live at the top of `server/ratings.js`.
+Goals: a progression system. Players climb slowly by playing; a win gains the same
+amount whatever the card currently reads (no pull back toward the middle), and a loss
+costs less than a win gains. Computed in `server/ratings.js` by replaying the player's
+games oldest first.
 
 **Step 0 — per-game placement** (0–1): for each game played, the share of the
 *opponents* the player finished ahead of (ties count half). Teammates (same `team`,
@@ -104,36 +105,23 @@ being diluted toward 0.5 by "ties" with your own side. Finishing order comes fro
 `details.place` when both rows have one (10 Seconds), otherwise from `(won, points)`.
 With no opponent at all, the win flag stands in (1/0).
 
-**Step 1 — per-game-type performance score** (1–99), for each type played at least once:
+**Step 1 — the game's change:**
 
 ```
-placement = recency-weighted mean of the last 50 placements of that type,
-            weight halving every 8 games (newest game = weight 1)
-raw       = 60 + (placement − 0.5) × 80          // 0.5→60, 0.75→80, ~0.9→89, 1→99
-perf      = (raw × n + 60 × 3) / (n + 3)         // n = games used; clamp to [1, 99]
+most games: change = placement × 1 − (1 − placement) × 0.5   // win +1, last −0.5
+Bluff:      change = beaten × 0.5 − beatYou × 0.25            // per opponent
 ```
 
-**Bluff counts table size.** Each Bluff game is weighted by `opponents / 2` — a 3-player
-game counts as one game, an 8-player game as 3.5 — both in the recency-weighted mean
-(multiplied into each game's weight) and in `n` (the sum of those sizes). Every opponent is
-a head-to-head you won or lost, so winning a big table lifts the rating more than winning
-a small one, and going out first at a big table costs more. Other games count 1 each.
+At a 3-player table Bluff matches every other game (+1 / −0.5); winning an 8-player
+table is +3.5, going out first there −1.75, 2nd of 8 +2.75.
 
-Recency means a hot (or cold) streak shows within a few games instead of being buried
-in a lifetime average. The 3 "imaginary average games" stop 1 lucky win reading 99
-(it reads 70) while still letting a new game type move fast.
+**Step 2 — apply it:** every card starts at **60**. OVR moves by the change; each stat
+moves by the change × that game's weight in the matrix above. Every value is clamped to
+[1, 99] after each game, so a card at 99 drops at once on a loss. Final values are
+rounded. Music Timeline and Mind Meld count for nothing.
 
-**Step 2 — stat score**, for each of the six stats: the weighted average of
-`perf(gameType)` over the stat's contributing games that the player has played, using
-the matrix weights above. A stat with none of its games played shows a flat **60**.
-
-**Step 3 — OVR**: the mean of `perf(gameType)` over the game types played, each
-weighted by `min(played, 20)` — *not* the mean of the six stats, so stats nobody has
-fed yet don't pin the overall to the baseline, and a one-off try of another game barely
-moves it. No games at all = 60.
-
-Rough feel: one win/loss moves an established overall by ~2; steady 0.75 placement is
-gold (~78); 90 needs ~0.95 placement sustained.
+Rough feel: 10 wins = +10; alternating win/loss still climbs +0.25 a game; an
+average player rises slowly the more they play.
 
 ### Card tier (visual only, from OVR)
 

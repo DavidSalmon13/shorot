@@ -2,99 +2,75 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { computeRatings } = require('../server/ratings');
+const { computeRatings, gameDelta } = require('../server/ratings');
 
-// byGame entry from per-game placements, newest first.
-const games = (...recent) => ({ played: recent.length, won: recent.filter((p) => p === 1).length, recent });
-const repeat = (n, p) => Array(n).fill(p);
+// History, oldest first: n games of one type at one placement / table size.
+const play = (n, gameType, placement, opponents = 2) =>
+  Array.from({ length: n }, () => ({ gameType, placement, opponents }));
+const ovrOf = (history) => computeRatings(history).ovr;
 
 test('a new card sits at the 60 baseline, bronze', () => {
-  const { stats, ovr, tier } = computeRatings({});
+  const { stats, ovr, tier } = computeRatings([]);
   assert.deepEqual(Object.values(stats), [60, 60, 60, 60, 60, 60]);
   assert.equal(ovr, 60);
   assert.equal(tier, 'bronze');
 });
 
-test('an average finish stays at the baseline', () => {
-  const { stats, ovr } = computeRatings({ bluff: games(...repeat(20, 0.5)) });
-  assert.equal(stats.NRV, 60);
-  assert.equal(ovr, 60);
+test('a win gains +1, last place costs -0.5, in between is linear', () => {
+  assert.equal(gameDelta({ gameType: 'imposter', placement: 1 }), 1);
+  assert.equal(gameDelta({ gameType: 'imposter', placement: 0 }), -0.5);
+  assert.equal(gameDelta({ gameType: 'imposter', placement: 0.5 }), 0.25);
 });
 
-test('one lucky win is shrunk toward the baseline, not 99', () => {
-  const { ovr } = computeRatings({ bluff: games(1) });
+test('a win gains the same whatever the current overall', () => {
+  for (const start of [10, 40, 60, 80]) {
+    const history = play(start, 'imposter', 1);
+    const before = computeRatings(history);
+    const after = computeRatings([...history, ...play(2, 'imposter', 1)]);
+    // 10 wins from the baseline is the same +10 at every level (until 99).
+    assert.equal(ovrOf([...history, ...play(10, 'imposter', 1)]) - before.ovr, Math.min(10, 99 - before.ovr));
+    assert.equal(after.ovr - before.ovr, Math.min(2, 99 - before.ovr));
+  }
+});
+
+test('a loss costs less than a win gains', () => {
+  assert.equal(ovrOf(play(10, 'codenames', 1)), 70);
+  assert.equal(ovrOf(play(10, 'codenames', 0)), 55);
+  // Win one, lose one: still climbing.
+  const mixed = [];
+  for (let i = 0; i < 10; i++) mixed.push(...play(1, 'codenames', 1), ...play(1, 'codenames', 0));
+  assert.equal(ovrOf(mixed), 65);
+});
+
+test('bluff: each opponent beaten +0.5, each who beat you -0.25', () => {
+  assert.equal(gameDelta({ gameType: 'bluff', placement: 1, opponents: 2 }), 1);
+  assert.equal(gameDelta({ gameType: 'bluff', placement: 1, opponents: 7 }), 3.5);
+  assert.equal(gameDelta({ gameType: 'bluff', placement: 0, opponents: 7 }), -1.75);
+  // 2nd of 8: beat 6, lost to 1.
+  assert.equal(gameDelta({ gameType: 'bluff', placement: 6 / 7, opponents: 7 }), 2.75);
+});
+
+test('table size only matters for bluff', () => {
+  assert.equal(gameDelta({ gameType: 'imposter', placement: 1, opponents: 7 }), 1);
+});
+
+test('capped at 99 and 1, and a loss at 99 drops straight away', () => {
+  const maxed = play(100, 'menifot', 1);
+  assert.equal(ovrOf(maxed), 99);
+  assert.equal(computeRatings(maxed).tier, 'gold');
+  assert.equal(ovrOf([...maxed, ...play(2, 'menifot', 0)]), 98);
+  assert.equal(ovrOf(play(200, 'menifot', 0)), 1);
+});
+
+test('stats move by the game change times their weight', () => {
+  const { stats, ovr } = computeRatings(play(10, 'bluff', 1));
   assert.equal(ovr, 70);
-});
-
-test('a single game visibly moves an established card', () => {
-  const base = repeat(30, 0.5);
-  const before = computeRatings({ imposter: games(...base), codenames: games(...base) }).ovr;
-  const win = computeRatings({ imposter: games(1, ...base), codenames: games(...base) }).ovr;
-  const loss = computeRatings({ imposter: games(0, ...base), codenames: games(...base) }).ovr;
-  assert.ok(win - before >= 2, `win moved ${before} -> ${win}`);
-  assert.ok(before - loss >= 2, `loss moved ${before} -> ${loss}`);
-});
-
-test('recent games count more than old ones', () => {
-  // Same 10 wins + 30 losses; only the order differs.
-  const hot = computeRatings({ bluff: games(...repeat(10, 1), ...repeat(30, 0)) }).ovr;
-  const cold = computeRatings({ bluff: games(...repeat(30, 0), ...repeat(10, 1)) }).ovr;
-  assert.ok(hot - cold >= 20, `recent wins ${hot} vs old wins ${cold}`);
-});
-
-test('90 takes dominating, gold takes clearly beating the table', () => {
-  assert.equal(computeRatings({ bluff: games(...repeat(30, 0.75)) }).tier, 'gold');
-  assert.ok(computeRatings({ bluff: games(...repeat(30, 0.85)) }).ovr < 90);
-  assert.ok(computeRatings({ bluff: games(...repeat(30, 0.95)) }).ovr >= 90);
-});
-
-test('unplayed stats do not drag the overall down', () => {
-  const { stats, ovr } = computeRatings({ imposter: games(...repeat(20, 0.85)) });
+  assert.equal(stats.NRV, 70);
+  assert.equal(stats.TAC, 66);
+  assert.equal(stats.COM, 63);
   assert.equal(stats.SPD, 60);
-  assert.equal(ovr, stats.DEC);
 });
 
-test('a one-off try of another game barely moves the overall', () => {
-  const main = repeat(20, 0.85);
-  const solo = computeRatings({ imposter: games(...main) }).ovr;
-  const withTry = computeRatings({ imposter: games(...main), bluff: games(0) }).ovr;
-  assert.ok(solo - withTry <= 1, `${solo} -> ${withTry}`);
-});
-
-test('without per-game rows, the lifetime average stands in', () => {
-  const { stats } = computeRatings({ bluff: { played: 8, won: 8, points: 8, placement: null } });
-  assert.equal(stats.NRV, 89);
-});
-
-// Bluff byGame entry with per-game opponent counts, newest first: [[placement, opponents], ...].
-const sized = (...rows) => ({ ...games(...rows.map(([p]) => p)), recentOpponents: rows.map(([, o]) => o) });
-
-test('bluff: winning an 8-player table moves the card more than winning a 3-player one', () => {
-  const base = repeat(20, [0.5, 2]);
-  const before = computeRatings({ bluff: sized(...base) }).ovr;
-  const small = computeRatings({ bluff: sized([1, 2], ...base) }).ovr;
-  const big = computeRatings({ bluff: sized([1, 7], ...base) }).ovr;
-  assert.ok(small > before, `${before} -> ${small}`);
-  assert.ok(big - before > 2 * (small - before), `3p win +${small - before}, 8p win +${big - before}`);
-});
-
-test('bluff: going out first at a big table costs more too', () => {
-  const base = repeat(20, [0.5, 2]);
-  const before = computeRatings({ bluff: sized(...base) }).ovr;
-  const small = computeRatings({ bluff: sized([0, 2], ...base) }).ovr;
-  const big = computeRatings({ bluff: sized([0, 7], ...base) }).ovr;
-  assert.ok(before - big > 2 * (before - small), `3p loss -${before - small}, 8p loss -${before - big}`);
-});
-
-test('bluff: one 8-player win is shrunk less than one 3-player win', () => {
-  assert.equal(computeRatings({ bluff: sized([1, 2]) }).ovr, 70);
-  assert.ok(computeRatings({ bluff: sized([1, 7]) }).ovr > 70);
-});
-
-test('table size only weights bluff', () => {
-  const plain = computeRatings({ imposter: games(1, ...repeat(20, 0.5)) }).ovr;
-  const withOpps = computeRatings({
-    imposter: { ...games(1, ...repeat(20, 0.5)), recentOpponents: [7, ...repeat(20, 2)] },
-  }).ovr;
-  assert.equal(withOpps, plain);
+test('music timeline and mind meld do not count', () => {
+  assert.equal(ovrOf([...play(5, 'musictimeline', 1), ...play(5, 'mindmeld', 1)]), 60);
 });
