@@ -7286,6 +7286,260 @@ body.store-picking [data-player] {
   50% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(90deg); }
 }
 
+/* 😎 I Am Him (js/shared/storeFx.js buildHim, 6.6s): the room goes dark around you, a
+   spotlight and a spinning aura, shades drop, "I AM HIM." slams onto the screen, then a gold
+   flash, shockwave and sparks. Every other icon greys out meanwhile (.store-av-not-him). */
+[data-player].store-av-him {
+  animation: store-av-him 6.6s ease forwards;
+}
+
+@keyframes store-av-him {
+  0% { transform: scale(1); filter: none; }
+  20% { transform: scale(1.12); filter: drop-shadow(0 0 10px rgba(255, 214, 74, 0.7)); }
+  45% { transform: scale(1.12); }
+  47% { transform: scale(1.32); filter: drop-shadow(0 0 22px rgba(255, 214, 74, 1)) brightness(1.2); }
+  52% { transform: scale(1.2); }
+  85% { transform: scale(1.2); filter: drop-shadow(0 0 14px rgba(255, 214, 74, 0.9)) brightness(1.1); }
+  100% { transform: scale(1); filter: none; }
+}
+
+[data-player].store-av-not-him {
+  filter: grayscale(1) brightness(0.55);
+  transform: scale(0.88);
+  transition: filter 0.6s ease, transform 0.6s ease;
+}
+
+/* The lights go down everywhere except a pool around you. */
+.sfx-him-dim {
+  width: 320vmax;
+  height: 320vmax;
+  background: radial-gradient(circle, transparent 0 calc(var(--size) * 0.75), rgba(4, 3, 12, 0.55) calc(var(--size) * 1.4), rgba(4, 3, 12, 0.86) calc(var(--size) * 2.6));
+  filter: none;
+  opacity: 0;
+  animation: sfx-him-dim 6.6s ease forwards;
+}
+
+@keyframes sfx-him-dim {
+  0% { opacity: 0; }
+  9%, 88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* A stage spotlight from the top of the screen, clanking on with a flicker. */
+.sfx-him-beam {
+  top: calc(var(--size) * 0.55);
+  width: calc(var(--size) * 2.6);
+  height: 130vh;
+  transform: translate(-50%, -100%);
+  clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%);
+  background: linear-gradient(to bottom, rgba(255, 244, 210, 0) 0%, rgba(255, 244, 210, 0.16) 55%, rgba(255, 238, 180, 0.42) 100%);
+  filter: none;
+  opacity: 0;
+  animation: sfx-him-beam 6.4s linear 0.2s forwards;
+}
+
+@keyframes sfx-him-beam {
+  0% { opacity: 1; }
+  2% { opacity: 0.1; }
+  4% { opacity: 0.9; }
+  6% { opacity: 0.3; }
+  9%, 86% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Two counter-spinning rings of purple-and-gold light behind the icon. */
+.sfx-him-aura {
+  width: calc(var(--size) * 2);
+  height: calc(var(--size) * 2);
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #ffd84a, #a78bfa, #ff9f4a, #c6ff4a, #a78bfa, #ffd84a);
+  -webkit-mask: radial-gradient(circle, transparent 0 46%, #000 52% 60%, transparent 70%);
+  mask: radial-gradient(circle, transparent 0 46%, #000 52% 60%, transparent 70%);
+  filter: blur(3px) drop-shadow(0 0 12px rgba(255, 214, 74, 0.8));
+  opacity: 0;
+  animation: sfx-him-aura-in 0.6s ease 0.5s forwards, sfx-him-spin 2.2s linear infinite, sfx-him-out 0.7s ease 5.8s forwards;
+}
+
+.sfx-him-aura-2 {
+  width: calc(var(--size) * 2.5);
+  height: calc(var(--size) * 2.5);
+  animation: sfx-him-aura-in 0.6s ease 0.8s forwards, sfx-him-spin 3.4s linear infinite reverse, sfx-him-out 0.7s ease 5.8s forwards;
+}
+
+@keyframes sfx-him-aura-in {
+  from { opacity: 0; }
+  to { opacity: 0.9; }
+}
+
+@keyframes sfx-him-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes sfx-him-out {
+  to { opacity: 0; }
+}
+
+/* Embers rising off you. */
+.sfx-him-ember {
+  left: calc(var(--size) * var(--k));
+  top: calc(var(--size) * 0.4);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 5px #ffd84a);
+  opacity: 0;
+  animation: sfx-him-ember 1.4s ease-out forwards;
+}
+
+@keyframes sfx-him-ember {
+  0% { opacity: 0; transform: translate(-50%, -50%); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, calc(-50% - var(--rise))) scale(0.4); }
+}
+
+/* Shades drop onto the face, bounce, settle - then a glint sweeps across them. */
+.sfx-him-shades {
+  top: calc(var(--size) * -0.08);
+  font-size: calc(var(--size) * 0.72);
+  opacity: 0;
+  animation: sfx-him-shades 5.3s ease 1.3s forwards;
+}
+
+@keyframes sfx-him-shades {
+  0% { opacity: 1; transform: translate(-50%, -650%) rotate(-25deg); }
+  7% { transform: translate(-50%, -40%) rotate(6deg); }
+  10% { transform: translate(-50%, -62%) rotate(-3deg); }
+  13%, 90% { opacity: 1; transform: translate(-50%, -50%) rotate(0); }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(0); }
+}
+
+.sfx-him-glint {
+  top: calc(var(--size) * -0.1);
+  width: calc(var(--size) * 0.18);
+  height: calc(var(--size) * 0.5);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+  filter: blur(1px);
+  opacity: 0;
+  animation: sfx-him-glint 0.5s ease-in-out 1.75s forwards;
+}
+
+@keyframes sfx-him-glint {
+  0% { opacity: 0; transform: translate(calc(-50% - var(--size) * 0.4), -50%) skewX(-20deg); }
+  30%, 70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--size) * 0.4), -50%) skewX(-20deg); }
+}
+
+/* "I AM" / "HIM." - fixed to the screen (above or below the icon, --wy), slamming in. */
+.sfx-him-words {
+  position: fixed;
+  left: 50%;
+  top: var(--wy, 30vh);
+  width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1em;
+  filter: none;
+  animation: sfx-him-out 0.6s ease 5.9s forwards;
+}
+
+.sfx-him-line {
+  display: flex;
+  gap: 0.6em;
+}
+
+.sfx-him-word {
+  display: block;
+  font-size: clamp(2.6rem, 15vw, 5rem);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  line-height: 0.95;
+  color: #fff6d6;
+  -webkit-text-stroke: 2px #1a1206;
+  text-shadow: 0 4px 0 #b8860b, 0 0 24px rgba(255, 214, 74, 0.85), 0 10px 30px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  animation: sfx-him-slam 0.42s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+
+.sfx-him-big {
+  font-size: clamp(4.5rem, 30vw, 9.5rem);
+  background: linear-gradient(180deg, #fffbe6 0%, #ffd84a 45%, #ff9f4a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 3px #1a1206;
+  text-shadow: none;
+  filter: drop-shadow(0 6px 0 #8a5a00) drop-shadow(0 0 28px rgba(255, 214, 74, 0.9));
+  animation: sfx-him-slam 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) forwards, sfx-him-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes sfx-him-slam {
+  0% { opacity: 0; transform: scale(3.2) rotate(-8deg); }
+  60% { opacity: 1; transform: scale(0.92) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes sfx-him-pulse {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.06; }
+}
+
+/* The drop on "HIM.": a gold flash, two shockwaves, sparks, then 🐐 💯 🔥 floating up. */
+.sfx-him-flash {
+  position: fixed;
+  inset: 0;
+  transform: none;
+  background: radial-gradient(circle, rgba(255, 246, 200, 0.9), rgba(255, 214, 74, 0.35) 60%, transparent);
+  filter: none;
+  opacity: 0;
+  animation: sfx-him-flash 0.7s ease-out 3s forwards;
+}
+
+@keyframes sfx-him-flash {
+  0% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+.sfx-him-ring {
+  width: calc(var(--size) * 1.3);
+  height: calc(var(--size) * 1.3);
+  border-radius: 50%;
+  border: 5px solid #ffd84a;
+  box-shadow: 0 0 26px #ffd84a, inset 0 0 22px #ffd84a;
+  opacity: 0;
+  animation: sfx-shockwave 1s ease-out 3s forwards;
+}
+
+.sfx-him-ring-2 {
+  border-color: #a78bfa;
+  box-shadow: 0 0 26px #a78bfa, inset 0 0 22px #a78bfa;
+  animation-delay: 3.18s;
+}
+
+.sfx-him-spark {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 6px #ffd84a);
+  opacity: 0;
+  animation: sfx-fling 1.6s cubic-bezier(0.15, 0.8, 0.3, 1) forwards;
+}
+
+.sfx-him-float {
+  left: calc(var(--size) * var(--k));
+  font-size: calc(var(--size) * 0.4);
+  opacity: 0;
+  animation: sfx-him-float 1.6s ease-out forwards;
+}
+
+@keyframes sfx-him-float {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.4); }
+  20% { opacity: 1; transform: translate(-50%, -30%) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, calc(var(--size) * -1.3)) scale(1); }
+}
+
 /* Reduced motion: just the item's icon fading in and out, plus the caption. */
 .sfx-simple-glyph {
   font-size: calc(var(--size) * 0.9);

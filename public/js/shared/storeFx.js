@@ -106,6 +106,15 @@ const GAGS = {
     haptic: [0, 700, 60, 40, 60, 40, 300],
     build: buildLightning,
   },
+  him: {
+    ms: () => HIM_MS, // a function: HIM_MS is declared further down
+    avatarClass: 'store-av-him',
+    caption: (from) => `😎 ${from} is HIM.`,
+    sound: () => sfx.him(),
+    // Silent while the lights go down, then a thump on "I", "AM", and a long one on "HIM."
+    haptic: [0, 2000, 70, 380, 70, 480, 450],
+    build: buildHim,
+  },
   crown: {
     ms: 5200,
     avatarClass: 'store-av-glow',
@@ -249,6 +258,95 @@ function buildLightning(stage) {
   burst(stage, { count: 10, glyphs: ['⚡', '✨'], spread: 110, delay: 450 });
   for (let i = 0; i < 6; i++) {
     part(stage, 'sfx-smoke', '💨', { animationDelay: `${1000 + i * 450}ms`, '--nx': `${-22 + (i % 3) * 22}px` });
+  }
+}
+
+/**
+ * 😎 I Am Him: the lights go down on everyone but you (every other icon greys out and
+ * shrinks), a stage spotlight clanks on, a purple-and-gold aura spins up with rising embers,
+ * shades drop onto your face with a glint, then "I" ... "AM" ... "HIM." slam onto the
+ * screen one word at a time, the last with a shockwave, a gold flash and a screen shake.
+ */
+const HIM_MS = 6600;
+const HIM_WORDS_AT = [2000, 2450, 3000]; // when "I", "AM" and "HIM." land, in ms
+
+function buildHim(stage, { targetName }) {
+  const later = (ms, fn) => setTimeout(() => stage.isConnected && fn(), ms);
+  part(stage, 'sfx-him-dim');
+  part(stage, 'sfx-him-beam');
+  part(stage, 'sfx-him-aura');
+  part(stage, 'sfx-him-aura sfx-him-aura-2');
+  const emberColors = ['#ffd84a', '#ff9f4a', '#a78bfa', '#c6ff4a'];
+  for (let i = 0; i < 18; i++) {
+    const el = part(stage, 'sfx-him-ember', '', {
+      '--k': (Math.random() * 1.1 - 0.55).toFixed(2),
+      '--rise': `${Math.round(90 + Math.random() * 90)}px`,
+      animationDelay: `${600 + Math.random() * 4200}ms`,
+    });
+    el.style.background = emberColors[i % emberColors.length];
+  }
+  part(stage, 'sfx-him-shades', '🕶️');
+  part(stage, 'sfx-him-glint');
+
+  // The words go wherever there's room: below the icon if it sits high, else above it.
+  const at = centerOf(targetName);
+  const words = part(stage, 'sfx-him-words');
+  words.style.setProperty('--wy', at && at.y < window.innerHeight * 0.5 ? '70vh' : '30vh');
+  const line1 = document.createElement('span');
+  line1.className = 'sfx-him-line';
+  [['I', 0], ['AM', 1]].forEach(([w, i]) => {
+    const s = document.createElement('span');
+    s.className = 'sfx-him-word';
+    s.textContent = w;
+    s.style.animationDelay = `${HIM_WORDS_AT[i]}ms`;
+    line1.appendChild(s);
+  });
+  const him = document.createElement('span');
+  him.className = 'sfx-him-word sfx-him-big';
+  him.textContent = 'HIM.';
+  him.style.animationDelay = `${HIM_WORDS_AT[2]}ms, ${HIM_WORDS_AT[2] + 500}ms`;
+  words.append(line1, him);
+
+  part(stage, 'sfx-him-flash');
+  part(stage, 'sfx-him-ring');
+  part(stage, 'sfx-him-ring sfx-him-ring-2');
+  burst(stage, { count: 26, colors: ['#ffd84a', '#fff3b0', '#ffb84a'], spread: Math.min(window.innerWidth, 520) * 0.45, className: 'sfx-him-spark', delay: HIM_WORDS_AT[2] });
+  ['🐐', '💯', '🔥', '👑', '🐐', '🔥'].forEach((g, i) => {
+    part(stage, 'sfx-him-float', g, {
+      '--k': ((i % 2 ? 1 : -1) * (0.6 + (i % 3) * 0.2)).toFixed(2),
+      animationDelay: `${HIM_WORDS_AT[2] + 300 + i * 330}ms`,
+    });
+  });
+
+  // Everyone else fades into the background while you're HIM (re-applied once in case the
+  // screen re-rendered), and the whole app jolts on each word.
+  const dimOthers = () => {
+    for (const el of document.querySelectorAll('[data-player]')) {
+      if (el.getAttribute('data-player') !== targetName) el.classList.add('store-av-not-him');
+    }
+  };
+  later(250, dimOthers);
+  later(1800, dimOthers);
+  setTimeout(() => {
+    for (const el of document.querySelectorAll('.store-av-not-him')) el.classList.remove('store-av-not-him');
+  }, HIM_MS - 500);
+  const app = document.querySelector('.app-main');
+  if (app && app.animate) {
+    HIM_WORDS_AT.forEach((t, i) => {
+      const k = i === 2 ? 14 : 6;
+      later(t, () =>
+        app.animate(
+          [
+            { transform: 'translate(0, 0)' },
+            { transform: `translate(${-k}px, ${k / 2}px)` },
+            { transform: `translate(${k}px, ${-k / 2}px)` },
+            { transform: `translate(${-k / 2}px, ${k / 3}px)` },
+            { transform: 'translate(0, 0)' },
+          ],
+          { duration: i === 2 ? 520 : 260, easing: 'ease-out' },
+        ),
+      );
+    });
   }
 }
 
