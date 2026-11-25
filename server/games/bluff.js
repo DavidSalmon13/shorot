@@ -561,6 +561,30 @@ function registerHandlers(ctx, io, socket) {
     applyBluffLoss(ctx, roomCode, room, name);
   });
 
+  // Host drags one seat onto another to match how people are really sitting. Seat order
+  // is display-only (nothing scores or deals by it), so it can change at any point of the
+  // match - mid-round, during the deal animation, while editing or checking.
+  socket.on('bfSwapSeats', (data, callback) => {
+    callback = callback || (() => {});
+    const roomCode = socket.data.roomCode;
+    const room = ctx.getRoom(socket);
+    if (!room) return callback({ ok: false, error: 'Not in a room' });
+    if (room.game !== 'bluff' || room.phase !== 'playing') {
+      return callback({ ok: false, error: 'Not playing right now' });
+    }
+    if (socket.data.name !== room.hostName) {
+      return callback({ ok: false, error: 'Only the host can move seats' });
+    }
+    const players = room.state.bluff.players;
+    const a = players.indexOf(data && data.a);
+    const b = players.indexOf(data && data.b);
+    if (a < 0 || b < 0 || a === b) return callback({ ok: false, error: 'Invalid seats' });
+
+    [players[a], players[b]] = [players[b], players[a]];
+    callback({ ok: true });
+    broadcastBluff(ctx, roomCode, room);
+  });
+
   // Host enters the card values called (suits ignored); after a short countdown everyone
   // sees whether all players' cards pooled together contain them.
   socket.on('bfCheckHand', (data, callback) => {

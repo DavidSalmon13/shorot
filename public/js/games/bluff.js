@@ -10,6 +10,7 @@ import { setInGameShop } from '../shared/storeActions.js';
 import { applyCosmetics } from '../shared/cosmetics.js';
 import { sfx, haptics, haptic } from '../fx.js';
 import { requestBackToLobby } from '../shared/backToLobby.js';
+import { makeSeatDraggable, isSeatDragActive, setSeatDragEndHandler } from './bluffSeatDrag.js';
 
 // Last phase seen, so Back to Lobby only asks for confirmation mid-match.
 let backPhase = null;
@@ -122,6 +123,7 @@ let bfDealing = false;
 let bfHandledResultKey = null;
 let bfAnnouncedGameover = false; // so the win/lose sting plays once per game-over, not per push
 let bfSequenceTimers = [];
+let bfDeferredSeats = null; // [seats, opts] for a render that arrived mid seat-drag
 
 // Host's in-progress pick of called card values - kept across re-renders so a state update
 // mid-pick (e.g. someone's offline badge) doesn't wipe it.
@@ -294,8 +296,16 @@ async function trySelectLoser(name) {
  * recompute every render. Each seat shows the player's lobby icon (sticker, or their
  * name-hashed emoji), with the lobby's gold ring when signed in. For the host, tapping
  * any active player's icon marks them as the round's loser - signed in or not, it never
- * opens their player card here. */
-function renderBfSeats(seats, { tappable, highlightName } = {}) {
+ * opens their player card here. The host can also drag any seat onto another to swap
+ * them (bluffSeatDrag.js); a render that lands mid-drag waits until the drag ends. */
+function renderBfSeats(seats, opts = {}) {
+  if (isSeatDragActive()) {
+    bfDeferredSeats = [seats, opts];
+    return;
+  }
+  bfDeferredSeats = null;
+  const { tappable, highlightName } = opts;
+  const draggable = ctx.getIsHost();
   bfSeatsEl.innerHTML = '';
   const n = seats.length;
   const radiusX = 37;
@@ -365,10 +375,23 @@ function renderBfSeats(seats, { tappable, highlightName } = {}) {
       seatEl.appendChild(tagEl);
     }
 
+    if (draggable) makeSeatDraggable(seatEl, seat.name, bfSeatsEl, trySwapSeats);
     bfSeatsEl.appendChild(seatEl);
   });
   if (bfInPlayEl) bfInPlayEl.textContent = inPlay;
 }
+
+function trySwapSeats(a, b) {
+  bfTableError.textContent = '';
+  haptic(30);
+  ctx.socket.emit('bfSwapSeats', { a, b }, (res) => {
+    if (res && !res.ok) bfTableError.textContent = res.error;
+  });
+}
+
+setSeatDragEndHandler(() => {
+  if (bfDeferredSeats) renderBfSeats(...bfDeferredSeats);
+});
 
 function renderTableHint(isHost, lastResult) {
   if (lastResult) {
@@ -377,7 +400,7 @@ function renderTableHint(isHost, lastResult) {
       : 'Waiting for the next round…';
   } else {
     bfTableHint.textContent = isHost
-      ? "Tap a player who lost this round."
+      ? 'Tap a player who lost this round. Drag a seat onto another to swap them.'
       : "Waiting for the host to mark this round's loser…";
   }
 }

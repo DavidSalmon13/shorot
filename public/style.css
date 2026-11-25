@@ -3942,6 +3942,31 @@ button.aiof-seat-open:hover {
   50% { opacity: 0.6; }
 }
 
+/* Host drag-to-swap (js/games/bluffSeatDrag.js). touch-action: none so a drag that
+   starts on a seat moves the seat instead of scrolling the page. */
+.bf-seat-draggable {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.bf-seat-dragging {
+  z-index: 5;
+  cursor: grabbing;
+  opacity: 0.92;
+}
+
+.bf-seat-dragging .bf-seat-avatar {
+  transform: scale(1.12);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+}
+
+.bf-seat-drop-target .bf-seat-avatar {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 3px var(--sun);
+}
+
 .bf-table-felt.bf-dealing {
   animation: bf-dealing-pulse 0.6s ease-in-out infinite;
 }

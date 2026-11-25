@@ -76,12 +76,19 @@ Dealt whenever a match starts (round 1) and automatically again after every lose
 
 ## Round table layout (UI)
 
-- Players are arranged in a **circle**, one seat per frozen roster slot, in the fixed order
-  captured at Start Match — seat positions are computed once and never reflow for the rest of
-  the match (an elimination does not shrink or re-space the circle).
-- The table is a tall stadium-shaped felt (fills a portrait phone better than a circle),
-  seats spaced around it on an oval, seat 0 at the bottom; the felt's center shows the total
-  cards still in play (sum of `bfCounts`).
+- Players are arranged in a **circle**, one seat per frozen roster slot, in the order
+  captured at Start Match — the number of seats never changes for the rest of the match (an
+  elimination does not shrink or re-space the circle). Only the host's seat swaps (below)
+  change who sits where.
+- The table is a wide oval felt (a square-ish one for 8+ players), short enough that the
+  table and your hand fit on one phone screen, seats spaced around it, seat 0 at the bottom;
+  the felt's center shows the total cards still in play (sum of `bfCounts`).
+- **Host seat swaps:** the host can drag any seat (eliminated ones too) and drop it on
+  another seat; the two players trade places for everyone (`bfSwapSeats { a, b }`, host-only,
+  any time while `phase === 'playing'`), so the screen can match how people really sit.
+  Seat order is display-only — nothing scores or deals by it — so a swap never affects
+  counts, hands, bets or the round in progress. A press that doesn't move stays a tap (mark
+  loser); a drag never also marks a loser. Client: `public/js/games/bluffSeatDrag.js`.
 - Each seat shows:
   - The player's **lobby icon**: their sticker, or the same name-hashed emoji fallback the
     lobby uses. Signed-in players keep the lobby's pulsing **gold ring** — cosmetic only:
@@ -266,10 +273,11 @@ excluded, matching All-In or Fold's "in-flight hand isn't persisted" simplificat
 - No bluffing/calling-out mechanic of any kind is simulated — that's entirely verbal, among
   the real players, exactly as the original ask requires ("Do NOT implement poker rules or
   gameplay logic," "Do NOT simulate gameplay decisions or turns").
-- No gameplay actions besides the host's seat-tap — the only things other players ever
+- No gameplay actions besides the host's seat-tap (and seat swaps) — the only things other players ever
   submit during a match are (signed in) bets.
 - No mid-match joining/leaving of the roster (unlike All-In or Fold) — the roster is frozen
   at Start Match and stays fixed for the whole match, including through a Reset Game.
-- No seat re-layout on elimination — the circle's shape never changes once a match starts.
+- No seat re-layout on elimination — the circle's shape never changes once a match starts
+  (the host can still swap who sits in which seat).
 - No per-side-pot-style complexity of any kind — there's exactly one shared pool of outcomes
   per round (one loser, decremented by exactly one card).

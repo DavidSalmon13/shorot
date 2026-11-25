@@ -813,6 +813,10 @@
   transform: scale(0.82);
 }
 
+:where(:root[data-theme="afterglow"]) .bf-seat-drop-target .bf-seat-avatar {
+  box-shadow: 0 0 0 3px var(--accent), 0 0 22px 4px rgba(198, 255, 74, 0.45);
+}
+
 /* 8+ players don't fit round a 4:3 oval - go square, with smaller seats. */
 :where(:root[data-theme="afterglow"]) .bf-table:has(.bf-seat:nth-child(8)) {
   aspect-ratio: 1 / 1;

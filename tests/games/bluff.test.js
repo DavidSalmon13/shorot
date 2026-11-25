@@ -435,3 +435,25 @@ test('a resolved side bet pushes a betResolved toast to both the bettor and the 
   assert.ok(bobResolved, 'Bob (the accepter, wrong side) gets a toast too');
   assert.equal(bobResolved.payload.won, false);
 });
+
+test('bfSwapSeats: host swaps two seats any time in the match; others and bad names are rejected', async () => {
+  const { ctx } = createTestCtx();
+  const room = createRoom(ctx, 'AAAA', ['Ann', 'Bob', 'Cid'], { game: 'bluff', phase: 'playing' });
+  room.state.bluff.players = ['Ann', 'Bob', 'Cid'];
+  room.state.bluff.counts = { Ann: 3, Bob: 0, Cid: 2 };
+  const host = registerGame(bluff, ctx, makeHandlerSocket('AAAA', room.hostName));
+  const other = registerGame(bluff, ctx, makeHandlerSocket('AAAA', 'Bob'));
+
+  assert.equal((await call(other, 'bfSwapSeats', { a: 'Ann', b: 'Cid' })).ok, false);
+  assert.equal((await call(host, 'bfSwapSeats', { a: 'Ann', b: 'Zed' })).ok, false);
+  assert.equal((await call(host, 'bfSwapSeats', { a: 'Ann', b: 'Ann' })).ok, false);
+  assert.deepEqual(room.state.bluff.players, ['Ann', 'Bob', 'Cid']);
+
+  // Eliminated players keep a seat and can be moved too; counts follow the name.
+  assert.equal((await call(host, 'bfSwapSeats', { a: 'Ann', b: 'Bob' })).ok, true);
+  assert.deepEqual(room.state.bluff.players, ['Bob', 'Ann', 'Cid']);
+  assert.deepEqual(room.state.bluff.counts, { Ann: 3, Bob: 0, Cid: 2 });
+
+  room.phase = 'gameover';
+  assert.equal((await call(host, 'bfSwapSeats', { a: 'Ann', b: 'Cid' })).ok, false);
+});
