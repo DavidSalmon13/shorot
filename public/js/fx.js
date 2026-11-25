@@ -428,6 +428,28 @@ export const sfx = {
     slide(820, 360, 0.45, { type: 'triangle', gain: 0.1, delay: 4.1 });
     slide(700, 300, 0.35, { type: 'triangle', gain: 0.08, delay: 4.6 });
   },
+  // I Am Him: a stage light clanks on over a rising bass swell, the shades go "ching", two
+  // bass hits on "I" and "AM", then the drop on "HIM." - a sub boom, three air-horn blasts
+  // and a bright major chord hanging over it.
+  him() {
+    noise(0.18, { gain: 0.35, delay: 0.2, freq: 1800, type: 'bandpass' });
+    tone(110, 0.25, { type: 'square', gain: 0.05, delay: 0.2 });
+    slide(45, 140, 1.8, { type: 'sawtooth', gain: 0.05, delay: 0.2 });
+    slide(90, 280, 1.8, { type: 'triangle', gain: 0.04, delay: 0.2 });
+    tone(2637, 0.15, { type: 'sine', gain: 0.07, delay: 1.45 });
+    tone(3951, 0.4, { type: 'sine', gain: 0.05, delay: 1.55 });
+    [2.0, 2.45].forEach((t) => {
+      voice({ freq: 120, freqEnd: 45, type: 'sine', dur: 0.5, peak: 0.5, delay: t });
+      noise(0.2, { gain: 0.3, delay: t, freq: 400 });
+    });
+    voice({ freq: 90, freqEnd: 30, type: 'sine', dur: 1.6, peak: 0.6, delay: 3.0 });
+    noise(1.2, { gain: 0.45, delay: 3.0, freq: 300 });
+    noise(0.25, { gain: 0.25, delay: 3.0, freq: 5000, type: 'highpass' });
+    [[3.1, 0.28], [3.45, 0.28], [3.8, 0.95]].forEach(([t, d]) => {
+      [466, 587, 698].forEach((f) => voice({ freq: f, type: 'sawtooth', dur: d, hold: d * 0.6, peak: 0.05, fat: 14, cutoff: 3200, delay: t }));
+    });
+    [523, 659, 784, 1046].forEach((f) => voice({ freq: f, type: 'triangle', dur: 1.8, attack: 0.25, peak: 0.05, delay: 4.6 }));
+  },
   // A royal fanfare with a shimmer on top.
   royal() {
     [392, 523, 659, 784].forEach((freq, i) => tone(freq, 0.16, { type: 'square', gain: 0.05, delay: i * 0.12 }));
