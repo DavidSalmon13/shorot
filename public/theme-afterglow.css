@@ -765,6 +765,127 @@
   border-radius: 18px;
 }
 
+/* Compact table: a wide, short oval with small seats, so the table AND your hand fit on
+   one phone screen without scrolling (the tall stadium pushed the hand below the fold).
+   Seat positions are percentages (renderBfSeats in js/games/bluff.js), so they follow
+   the wider box on their own. */
+:where(:root[data-theme="afterglow"]) #bf-round-label {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+:where(:root[data-theme="afterglow"]) #bf-table-hint {
+  margin: 0 0 0.3rem;
+}
+
+:where(:root[data-theme="afterglow"]) .bf-table {
+  flex: none;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  margin: 0.8rem 0 0.4rem;
+}
+
+:where(:root[data-theme="afterglow"]) .bf-table-felt {
+  inset: 22% 14%;
+}
+
+:where(:root[data-theme="afterglow"]) .bf-table-center-count {
+  font-size: 2rem;
+}
+
+:where(:root[data-theme="afterglow"]) .bf-table-center-label,
+:where(:root[data-theme="afterglow"]) .bf-table-center-sub {
+  font-size: 0.6rem;
+}
+
+:where(:root[data-theme="afterglow"]) .bf-seat {
+  width: 4.6rem;
+  gap: 0.1rem;
+}
+
+:where(:root[data-theme="afterglow"]) .bf-seat-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  min-height: 0; /* the host's seats are buttons, which otherwise get the 52px tap height */
+}
+
+:where(:root[data-theme="afterglow"]) .bf-seat-chip {
+  transform: scale(0.82);
+}
+
+/* 8+ players don't fit round a 4:3 oval - go square, with smaller seats. */
+:where(:root[data-theme="afterglow"]) .bf-table:has(.bf-seat:nth-child(8)) {
+  aspect-ratio: 1 / 1;
+  margin-top: 1rem;
+}
+
+:where(:root[data-theme="afterglow"]) .bf-table:has(.bf-seat:nth-child(8)) .bf-seat {
+  width: 4.2rem;
+}
+
+:where(:root[data-theme="afterglow"]) .bf-table:has(.bf-seat:nth-child(8)) .bf-seat-avatar {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+:where(:root[data-theme="afterglow"]) .bf-table:has(.bf-seat:nth-child(8)) .bf-table-felt {
+  inset: 18% 18%;
+}
+
+/* Names stay on one line; the chip may be wider than its seat (it stays centred). */
+:where(:root[data-theme="afterglow"]) .bf-seat-chip {
+  max-width: none;
+}
+
+:where(:root[data-theme="afterglow"]) .bf-seat-name {
+  display: block;
+  max-width: 4.5rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Your hand comes straight after the table, above the host's check/edit buttons and the
+   betting sections, so it's on the first screen for everyone. */
+:where(:root[data-theme="afterglow"]) #bf-table-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+:where(:root[data-theme="afterglow"]) #bf-table-panel > * {
+  order: 2;
+}
+
+:where(:root[data-theme="afterglow"]) #bf-table-panel > :is(#bf-round-label, #bf-table-hint, #bf-check-result, .bf-table) {
+  order: 0;
+}
+
+:where(:root[data-theme="afterglow"]) #bf-table-panel > :is(#bf-hand-heading, #bf-hand, #bf-spectator-hands) {
+  order: 1;
+}
+
+:where(:root[data-theme="afterglow"]) #bf-hand-heading {
+  margin: 0.2rem 0 0.3rem;
+}
+
+/* Your hand: bigger cards, centred. */
+:where(:root[data-theme="afterglow"]) #bf-hand.bf-hand {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+:where(:root[data-theme="afterglow"]) #bf-hand .bf-card {
+  width: 3.3rem;
+  height: 4.6rem;
+  font-size: 1.1rem;
+}
+
+/* Room to scroll the last row of cards clear of the fixed reaction row. */
+:where(:root[data-theme="afterglow"]) #bf-table-panel {
+  padding-bottom: 4.5rem;
+}
+
 /* ---------- Dialogs ---------- */
 
 :where(:root[data-theme="afterglow"]) .confirm-overlay {
