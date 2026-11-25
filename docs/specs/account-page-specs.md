@@ -115,7 +115,11 @@ Bluff:      change = beaten × 0.5 − beatYou × 0.25            // per opponen
 At a 3-player table Bluff matches every other game (+1 / −0.5); winning an 8-player
 table is +3.5, going out first there −1.75, 2nd of 8 +2.75.
 
-**Step 2 — apply it:** every card starts at **60**. OVR moves by the change; each stat
+**Step 2 — apply it:** the card starts where the *old* formula (a recency-weighted
+average of placements, frozen in `server/ratingsLegacy.js`) put it using only the games
+that ended before the switch (`PROGRESSION_SINCE` in `server/ratings.js`,
+2026-11-26 00:00 UTC), so nobody's number jumped when the formula changed; a player with
+no games before then starts at **60**. From there, OVR moves by the change and each stat
 moves by the change × that game's weight in the matrix above. Every value is clamped to
 [1, 99] after each game, so a card at 99 drops at once on a loss. Final values are
 rounded. Music Timeline and Mind Meld count for nothing.

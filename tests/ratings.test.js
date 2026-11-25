@@ -74,3 +74,39 @@ test('stats move by the game change times their weight', () => {
 test('music timeline and mind meld do not count', () => {
   assert.equal(ovrOf([...play(5, 'musictimeline', 1), ...play(5, 'mindmeld', 1)]), 60);
 });
+
+// --- Switch-over: cards keep the number the old formula gave them --------------------
+
+const legacy = require('../server/ratingsLegacy');
+const { PROGRESSION_SINCE } = require('../server/ratings');
+
+const before = (n, gameType, placement) =>
+  play(n, gameType, placement).map((g, i) => ({
+    ...g,
+    won: placement === 1,
+    endedAt: new Date(PROGRESSION_SINCE - (n - i) * 60_000),
+  }));
+const after = (n, gameType, placement, opponents) =>
+  play(n, gameType, placement, opponents).map((g, i) => ({
+    ...g,
+    endedAt: new Date(PROGRESSION_SINCE + (i + 1) * 60_000),
+  }));
+
+test('games before the switch keep exactly the old formula card', () => {
+  const old = [...before(12, 'bluff', 1), ...before(8, 'imposter', 0.25)];
+  // Old formula input: per type, placements newest first.
+  const expected = legacy.computeRatings({
+    bluff: { played: 12, won: 12, recent: Array(12).fill(1) },
+    imposter: { played: 8, won: 0, recent: Array(8).fill(0.25) },
+  });
+  assert.deepEqual(computeRatings(old), expected);
+});
+
+test('after the switch, fixed steps count on from that number', () => {
+  const old = before(12, 'bluff', 1);
+  const start = computeRatings(old).ovr;
+  assert.ok(start > 60, `old card ${start}`);
+  assert.equal(ovrOf([...old, ...after(3, 'bluff', 1, 2)]), start + 3);
+  assert.equal(ovrOf([...old, ...after(2, 'bluff', 0, 2)]), start - 1);
+  assert.equal(ovrOf([...old, ...after(1, 'bluff', 1, 7)]), Math.round(start + 3.5));
+});

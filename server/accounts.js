@@ -477,9 +477,11 @@ async function playerCard({ userId, clientId }) {
   // details.place when both rows have one (10 Seconds, whose points don't separate
   // middle waves), else (won, points) like rivalries(). With no opponent at all the
   // win flag stands in. Feeds the rating card (server/ratings.js), which replays the
-  // games oldest first, adding a fixed change per game (Bluff: per opponent).
+  // games oldest first: the old formula up to the switch, then a fixed change per game
+  // (Bluff: per opponent).
   const { rows } = await db.query(
     `SELECT g.game_type,
+            g.ended_at,
             coalesce(gp.won, false)                    AS won,
             gp.points,
             coalesce(o.placement, CASE WHEN gp.won THEN 1 ELSE 0 END)::float8 AS placement,
@@ -536,6 +538,8 @@ async function playerCard({ userId, clientId }) {
     gameType: r.game_type,
     placement: r.placement,
     opponents: r.opponents,
+    won: r.won,
+    endedAt: r.ended_at,
   })));
   return {
     gamesPlayed,
