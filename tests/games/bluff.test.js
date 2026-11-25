@@ -457,3 +457,71 @@ test('bfSwapSeats: host swaps two seats any time in the match; others and bad na
   room.phase = 'gameover';
   assert.equal((await call(host, 'bfSwapSeats', { a: 'Ann', b: 'Cid' })).ok, false);
 });
+
+// Ann (host) - Bob - Cid - Dee sit in that (clockwise) order; Cid is out.
+function callBluffRoom(ctx) {
+  const room = createRoom(ctx, 'AAAA', ['Ann', 'Bob', 'Cid', 'Dee'], { game: 'bluff', phase: 'playing' });
+  room.state.bluff.players = ['Ann', 'Bob', 'Cid', 'Dee'];
+  room.state.bluff.counts = { Ann: 2, Bob: 2, Cid: 0, Dee: 2 };
+  room.state.bluff.hands = { Ann: ['Ah', 'Kh'], Bob: ['2c', '3c'], Dee: ['7d', '7s'] };
+  room.state.bluff.roundNumber = 1;
+  return room;
+}
+
+test('bfCallBluff: any active player calls the previous active seat; reveal names who should lose', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { ctx } = createTestCtx();
+  const room = callBluffRoom(ctx);
+  const dee = registerGame(bluff, ctx, makeHandlerSocket('AAAA', 'Dee'));
+  const ann = registerGame(bluff, ctx, makeHandlerSocket('AAAA', 'Ann'));
+
+  // Dee's previous seat is Cid, who's out - so Dee calls Bob.
+  const res = await call(dee, 'bfCallBluff', { ranks: ['A', 'A'] });
+  assert.equal(res.ok, true);
+  assert.equal(res.target, 'Bob');
+  assert.equal(room.state.bluff.check.caller, 'Dee');
+  assert.equal(room.state.bluff.check.suggestedLoser, null, 'nothing named before the reveal');
+  assert.equal((await call(ann, 'bfCallBluff', { ranks: ['K'] })).ok, false, 'one check at a time');
+
+  t.mock.timers.tick(3000);
+  assert.equal(room.state.bluff.check.present, false, 'only one A on the table');
+  assert.equal(room.state.bluff.check.suggestedLoser, 'Bob', 'not there -> the called player');
+  // Never ends the round itself - only the host does.
+  assert.equal(room.state.bluff.counts.Bob, 2);
+  assert.equal(room.state.bluff.lastResult, null);
+
+  // Wraps round: Ann (seat 0) calls Dee (last seat); cards there -> Ann should lose.
+  assert.equal((await call(ann, 'bfCallBluff', { ranks: ['7', '7'] })).ok, true);
+  t.mock.timers.tick(3000);
+  assert.equal(room.state.bluff.check.target, 'Dee');
+  assert.equal(room.state.bluff.check.suggestedLoser, 'Ann');
+});
+
+test('bfCallBluff: eliminated players, no live round and editing are all rejected', async () => {
+  const { ctx } = createTestCtx();
+  const room = callBluffRoom(ctx);
+  const cid = registerGame(bluff, ctx, makeHandlerSocket('AAAA', 'Cid'));
+  const bob = registerGame(bluff, ctx, makeHandlerSocket('AAAA', 'Bob'));
+
+  assert.equal((await call(cid, 'bfCallBluff', { ranks: ['A'] })).ok, false, 'out of cards');
+  assert.equal((await call(bob, 'bfCallBluff', { ranks: [] })).ok, false, 'no cards picked');
+
+  room.state.bluff.editing = true;
+  assert.equal((await call(bob, 'bfCallBluff', { ranks: ['A'] })).ok, false);
+  room.state.bluff.editing = false;
+
+  room.state.bluff.lastResult = { loserName: 'Ann', newCount: 1, eliminated: false };
+  assert.equal((await call(bob, 'bfCallBluff', { ranks: ['A'] })).ok, false, 'between rounds');
+});
+
+test('the payload tells each player who they can call bluff on', async () => {
+  const { ctx, io } = createTestCtx();
+  const room = callBluffRoom(ctx);
+  const ann = registerGame(bluff, ctx, makeHandlerSocket('AAAA', 'Ann'));
+  await call(ann, 'bfSwapSeats', { a: 'Bob', b: 'Dee' }); // Ann, Dee, Cid, Bob
+  const last = (name) => emissionsFor(io, room, name).filter((e) => e.event === 'bluffState').at(-1).payload;
+  assert.equal(last('Ann').bluffTarget, 'Bob', 'seat swaps change the target');
+  assert.equal(last('Dee').bluffTarget, 'Ann');
+  assert.equal(last('Bob').bluffTarget, 'Dee', 'skips Cid, who is out');
+  assert.equal(last('Cid').bluffTarget, null);
+});

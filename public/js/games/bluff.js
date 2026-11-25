@@ -60,6 +60,11 @@ const bfCheckPicked = document.getElementById('bf-check-picked');
 const bfCheckRanks = document.getElementById('bf-check-ranks');
 const bfCheckCancelBtn = document.getElementById('bf-check-cancel-btn');
 const bfCheckSubmitBtn = document.getElementById('bf-check-submit-btn');
+const bfCheckBuilderTitle = document.getElementById('bf-check-builder-title');
+const bfCheckMarkBtn = document.getElementById('bf-check-mark-btn');
+const bfCheckLoserEl = document.getElementById('bf-check-loser');
+const bfCallOpenBtn = document.getElementById('bf-call-open-btn');
+const bfCallOpenLabel = document.getElementById('bf-call-open-label');
 const bfEditOpenBtn = document.getElementById('bf-edit-open-btn');
 const bfEditPanel = document.getElementById('bf-edit-panel');
 const bfEditHint = document.getElementById('bf-edit-hint');
@@ -75,6 +80,8 @@ const bfRevealStage = document.getElementById('bf-reveal-stage');
 const bfRevealCards = document.getElementById('bf-reveal-cards');
 const bfRevealCount = document.getElementById('bf-reveal-count');
 const bfRevealVerdict = document.getElementById('bf-reveal-verdict');
+const bfRevealKicker = document.getElementById('bf-reveal-kicker');
+const bfRevealLoser = document.getElementById('bf-reveal-loser');
 const bfRevealStrongest = document.getElementById('bf-reveal-strongest');
 const bfRevealClose = document.getElementById('bf-reveal-close');
 const bfRevealConfetti = document.getElementById('bf-reveal-confetti');
@@ -128,7 +135,10 @@ let bfDeferredSeats = null; // [seats, opts] for a render that arrived mid seat-
 // Host's in-progress pick of called card values - kept across re-renders so a state update
 // mid-pick (e.g. someone's offline badge) doesn't wipe it.
 let bfBuilderOpen = false;
+let bfBuilderMode = 'check'; // 'check' = host's check, 'call' = a player's bluff call
 let bfPick = [];
+let bfCheckLoser = null; // revealed bluff call: who should lose (null for host checks)
+let bfLastTableData = null; // last table payload, so Cancel can re-render the check controls
 // Local 3-2-1 countdown for the current check, keyed by check id so re-renders don't restart it.
 let bfCheckShownId = null;
 let bfCheckTimer = null;
@@ -524,6 +534,7 @@ function stopCheckCountdown() {
 function renderCheckCountdown() {
   bfCheckResult.classList.remove('bf-check-present', 'bf-check-absent');
   const left = Math.ceil((bfCheckRevealAt - Date.now()) / 1000);
+  bfCheckLoserEl.classList.toggle('hidden', bfCheckPresent === null || !bfCheckLoser);
   if (bfCheckPresent === null) {
     // Server reveal may land a beat after our local clock hits zero - hold on "1" until it does.
     bfCheckCountdown.textContent = String(Math.max(1, left));
@@ -532,6 +543,12 @@ function renderCheckCountdown() {
   stopCheckCountdown();
   bfCheckResult.classList.add(bfCheckPresent ? 'bf-check-present' : 'bf-check-absent');
   bfCheckCountdown.textContent = bfCheckPresent ? '✅ It\'s there!' : '❌ Not there!';
+  if (bfCheckLoser) bfCheckLoserEl.textContent = `${bfCheckLoser} loses this round`;
+}
+
+/** "Dana called bluff on Avi: 7, 7, K" for a player's call, just the cards for the host's. */
+function checkLabel(check) {
+  return check.caller ? `${check.caller} called bluff on ${check.target}: ${check.label}` : check.label;
 }
 
 function bfMakeStaticChip(text, extraClass) {
@@ -569,8 +586,16 @@ function renderCheckStrongest(strongest) {
 
 /** Shows the called cards, a 3-2-1 countdown, then which were there (and which weren't)
  * plus the strongest hand sitting on the table. */
-function applyCheck(check) {
+function applyCheck(check, data) {
   bfRevealSync(check);
+  // The host ends the round: after a bluff call's reveal, one tap marks whoever it named.
+  const markName = check && check.suggestedLoser;
+  const canMark = !!markName && ctx.getIsHost() && !(data && data.lastResult);
+  bfCheckMarkBtn.classList.toggle('hidden', !canMark);
+  if (canMark) {
+    bfCheckMarkBtn.textContent = `Mark ${markName} as loser`;
+    bfCheckMarkBtn.dataset.name = markName;
+  }
   if (!check) {
     stopCheckCountdown();
     bfCheckShownId = null;
@@ -581,8 +606,9 @@ function applyCheck(check) {
     return;
   }
   bfCheckResult.classList.remove('hidden');
-  bfCheckLabel.textContent = check.label;
+  bfCheckLabel.textContent = checkLabel(check);
   bfCheckPresent = check.present;
+  bfCheckLoser = check.suggestedLoser || null;
   if (check.id !== bfCheckShownId) {
     bfCheckShownId = check.id;
     bfCheckRevealAt = Date.now() + check.remainingMs;
@@ -653,7 +679,9 @@ function bfRevealOpen(check) {
   bfRevealCards.innerHTML = '';
   (check.ranks || []).forEach((r) => bfRevealCards.appendChild(bfRevealCardEl(r)));
   bfRevealCards.classList.toggle('bf-reveal-cards-many', (check.ranks || []).length > 6);
+  bfRevealKicker.textContent = check.caller ? `${check.caller} calls bluff on ${check.target}!` : 'Bluff called!';
   bfRevealVerdict.textContent = '';
+  bfRevealLoser.textContent = '';
   bfRevealStrongest.textContent = '';
   bfRevealClose.classList.add('hidden');
   bfRevealBeat = null;
@@ -707,6 +735,7 @@ function bfRevealResolve(check) {
     setTimeout(() => {
       bfReveal.classList.add('bf-reveal-done', check.present ? 'bf-reveal-present' : 'bf-reveal-absent');
       bfRevealVerdict.textContent = check.present ? "It's there!" : 'Not there!';
+      bfRevealLoser.textContent = check.suggestedLoser ? `${check.suggestedLoser} loses this round` : '';
       bfRevealStrongest.textContent = check.strongest
         ? `Strongest hand on the table: ${check.strongest.label}`
         : 'No pairs on the table right now.';
@@ -1253,21 +1282,42 @@ function applyTable(data) {
   bfTableError.textContent = '';
   bfEditError.textContent = '';
   runResultSequence(data);
-  applyCheck(data.check);
+  applyCheck(data.check, data);
   renderEditPanel(data);
-
-  // Host can check the called cards while a round is live, no check is counting down,
-  // and no card-count edit is in progress (bfEditing blocks bfCheckHand server-side too).
-  const isHost = ctx.getIsHost();
-  const checkCounting = !!data.check && data.check.present === null;
-  const canCheck = isHost && !data.lastResult && !checkCounting && !data.editing;
-  if (!canCheck && bfBuilderOpen) resetBuilder();
-  bfCheckOpenBtn.classList.toggle('hidden', !canCheck || bfBuilderOpen);
-  bfCheckOpenLabel.textContent = data.check ? 'Check other cards' : 'Check the called cards';
-  bfCheckBuilder.classList.toggle('hidden', !canCheck || !bfBuilderOpen);
+  bfLastTableData = data;
+  renderCheckControls(data);
 
   renderHandOrSpectator(data);
   renderBetting(data.betting, data.seats);
+}
+
+/**
+ * The host's "Check the called cards" and every active player's "Call bluff on <X>" (X =
+ * data.bluffTarget, the player before them), which share one card-picker builder. Either
+ * needs a live round, no check counting down and no card-count edit in progress.
+ */
+function renderCheckControls(data) {
+  const checkCounting = !!data.check && data.check.present === null;
+  const canCheck = ctx.getIsHost() && !data.lastResult && !checkCounting && !data.editing;
+  const callTarget = data.bluffTarget || null;
+  const builderAllowed = bfBuilderMode === 'call' ? !!callTarget : canCheck;
+  if (!builderAllowed && bfBuilderOpen) resetBuilder();
+  bfCheckOpenBtn.classList.toggle('hidden', !canCheck || bfBuilderOpen);
+  bfCheckOpenLabel.textContent = data.check ? 'Check other cards' : 'Check the called cards';
+  bfCallOpenBtn.classList.toggle('hidden', !callTarget || bfBuilderOpen);
+  if (callTarget) bfCallOpenLabel.textContent = `Call bluff on ${callTarget}`;
+  bfCheckBuilder.classList.toggle('hidden', !builderAllowed || !bfBuilderOpen);
+  if (bfBuilderMode === 'call' && callTarget) {
+    bfCheckBuilderTitle.textContent = `Calling bluff on ${callTarget}: which cards did they call?`;
+  }
+}
+
+function openBuilder(mode) {
+  bfBuilderMode = mode;
+  bfBuilderOpen = true;
+  if (mode === 'check') bfCheckBuilderTitle.textContent = 'Which cards were called?';
+  bfCheckSubmitBtn.textContent = mode === 'call' ? 'Call bluff!' : 'Check!';
+  if (bfLastTableData) renderCheckControls(bfLastTableData);
 }
 
 /** Eliminated players have no hand of their own - instead they see every active player's
@@ -1434,27 +1484,28 @@ export const Bluff = {
     buildBuilderChips();
     renderBuilder();
 
-    bfCheckOpenBtn.addEventListener('click', () => {
-      bfBuilderOpen = true;
-      bfCheckOpenBtn.classList.add('hidden');
-      bfCheckBuilder.classList.remove('hidden');
-    });
+    bfCheckOpenBtn.addEventListener('click', () => openBuilder('check'));
+    bfCallOpenBtn.addEventListener('click', () => openBuilder('call'));
 
     bfCheckCancelBtn.addEventListener('click', () => {
       resetBuilder();
-      bfCheckBuilder.classList.add('hidden');
-      bfCheckOpenBtn.classList.remove('hidden');
+      if (bfLastTableData) renderCheckControls(bfLastTableData);
     });
 
     bfCheckSubmitBtn.addEventListener('click', () => {
       if (bfPick.length === 0) return;
       bfTableError.textContent = '';
       const ranks = bfPick.slice();
-      socket.emit('bfCheckHand', { ranks }, (res) => {
+      const event = bfBuilderMode === 'call' ? 'bfCallBluff' : 'bfCheckHand';
+      socket.emit(event, { ranks }, (res) => {
         if (res && !res.ok) bfTableError.textContent = res.error;
       });
       resetBuilder();
       bfCheckBuilder.classList.add('hidden');
+    });
+
+    bfCheckMarkBtn.addEventListener('click', () => {
+      if (bfCheckMarkBtn.dataset.name) trySelectLoser(bfCheckMarkBtn.dataset.name);
     });
 
     bfEditOpenBtn.addEventListener('click', () => {

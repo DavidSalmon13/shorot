@@ -4303,6 +4303,17 @@ button.confirm-danger {
   font-size: 0.95rem;
 }
 
+.bf-check-loser {
+  margin: 0.3rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+#bf-check-mark-btn {
+  margin-top: 0.6rem;
+  width: 100%;
+}
+
 .bf-check-builder {
   display: flex;
   flex-direction: column;
@@ -4643,6 +4654,19 @@ button.confirm-danger {
   0% { transform: scale(3) rotate(-8deg); opacity: 0; }
   60% { transform: scale(0.92) rotate(2deg); opacity: 1; }
   100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+/* A player's bluff call: who the reveal says should lose (the host still ends the round). */
+.bf-reveal-loser {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #fff3dc;
+  animation: confirm-fade-in 0.4s var(--ease) 0.15s both;
+}
+
+.bf-reveal-loser:empty {
+  display: none;
 }
 
 .bf-reveal-strongest {

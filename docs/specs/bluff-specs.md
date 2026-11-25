@@ -176,6 +176,27 @@ called are actually there among **every active player's cards pooled together**.
 - `room.bfCheck` (`{ id, ranks, label, revealAt, present }`) is **not persisted**, like
   `bfHands`: after a restart the round is re-dealt, so any check is moot.
 
+### Calling bluff (any active player)
+
+- Every player still holding cards gets a **"Call bluff on `<X>`"** button, where `X` is the
+  nearest player still holding cards in the seats *before* theirs — seat order runs clockwise
+  on the table, so that's whoever claimed just before them. Eliminated seats are skipped, and
+  host seat swaps change `X` straight away. The server sends each viewer their `bluffTarget`
+  (null = no button); it's null whenever a check couldn't start (no live round, a check
+  counting down, a card-count edit open).
+- Pressing it opens the same card picker as the host's check ("Calling bluff on `X`: which
+  cards did they call?"); submitting sends `bfCallBluff { ranks }`. The server works out
+  `X` itself, then runs the exact same check: same countdown, same full-screen reveal — with
+  the kicker "`<caller>` calls bluff on `X`!" — and one more line once revealed:
+  **cards there → the caller loses this round; not there → `X` loses this round**
+  (`check.caller`, `check.target`, `check.suggestedLoser`).
+- **The app never ends the round itself.** A mis-entered call costs nobody a card: the
+  verdict only *names* who should lose. The host still ends every round — either by tapping a
+  seat as before, or with the one-tap **"Mark `<name>` as loser"** button that appears on the
+  host's check panel after a bluff call's reveal (same confirm dialog). The host can also ignore
+  it, or run their own check.
+- Only one check (host's or a player's) at a time, sharing every guard of the host's check.
+
 ## Editing card counts mid-match (host-controlled)
 
 A correction tool for when the app's tracked counts drift from reality (a miscounted
@@ -273,8 +294,9 @@ excluded, matching All-In or Fold's "in-flight hand isn't persisted" simplificat
 - No bluffing/calling-out mechanic of any kind is simulated — that's entirely verbal, among
   the real players, exactly as the original ask requires ("Do NOT implement poker rules or
   gameplay logic," "Do NOT simulate gameplay decisions or turns").
-- No gameplay actions besides the host's seat-tap (and seat swaps) — the only things other players ever
-  submit during a match are (signed in) bets.
+- No gameplay actions besides the host's seat-tap (and seat swaps) — the only things other
+  players ever submit during a match are bluff calls (which only check cards; the host still
+  picks the loser) and (signed in) bets.
 - No mid-match joining/leaving of the roster (unlike All-In or Fold) — the roster is frozen
   at Start Match and stays fixed for the whole match, including through a Reset Game.
 - No seat re-layout on elimination — the circle's shape never changes once a match starts

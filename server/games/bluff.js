@@ -88,6 +88,72 @@ function activeBluffPlayers(room) {
 }
 
 /**
+ * Who `name` can call bluff on: the nearest player still holding cards in the seats
+ * before theirs (seat order runs clockwise on the table, so this is whoever claimed just
+ * before them). Null if `name` is out, unknown, or has nobody left to call.
+ */
+function bluffTargetOf(room, name) {
+  const { players, counts } = room.state.bluff;
+  const i = players.indexOf(name);
+  if (i < 0 || (counts[name] || 0) <= 0) return null;
+  for (let step = 1; step < players.length; step++) {
+    const other = players[(i - step + players.length) % players.length];
+    if ((counts[other] || 0) > 0) return other;
+  }
+  return null;
+}
+
+/** Why a check can't start right now (null = it can). Shared by bfCheckHand/bfCallBluff. */
+function checkBlockedReason(room) {
+  if (!hasActiveRound(room)) return 'No active round to check';
+  if (checkPending(room)) return 'Already checking - wait for the result';
+  if (room.state.bluff.editing) return 'Finish editing card counts first';
+  return null;
+}
+
+/**
+ * Starts a check of `ranks` against every hand pooled together: broadcasts the countdown,
+ * then reveals presence when it ends. `call` = { caller, target } for a player's bluff call
+ * (the reveal then also names suggestedLoser), null for the host's own check.
+ */
+function startCheck(ctx, roomCode, room, ranks, call) {
+  room.state.bluff.check = {
+    id: `${room.state.bluff.roundNumber}:${Date.now()}`,
+    ranks,
+    label: calledRanksLabel(ranks),
+    revealAt: Date.now() + BF_CHECK_COUNTDOWN_MS,
+    present: null,
+    perCard: null,
+    strongest: null,
+    caller: call ? call.caller : null,
+    target: call ? call.target : null,
+    suggestedLoser: null,
+  };
+  broadcastBluff(ctx, roomCode, room);
+
+  clearCheckTimer(roomCode);
+  const check = room.state.bluff.check;
+  bfCheckTimers.set(
+    roomCode,
+    setTimeout(() => {
+      bfCheckTimers.delete(roomCode);
+      if (room.state.bluff.check !== check) return;
+      const pooled = Object.values(room.state.bluff.hands).flat();
+      check.present = areRanksPresent(ranks, pooled);
+      check.perCard = calledRanksPresence(ranks, pooled);
+      check.strongest = strongestHand(pooled);
+      if (check.caller) check.suggestedLoser = check.present ? check.caller : check.target;
+      broadcastBluff(ctx, roomCode, room);
+    }, BF_CHECK_COUNTDOWN_MS)
+  );
+}
+
+/** A check (host's or a player's bluff call) may start: live round, nothing in the way. */
+function canStartCheck(room) {
+  return room.phase === 'playing' && hasActiveRound(room) && !checkPending(room) && !room.state.bluff.editing;
+}
+
+/**
  * Winner (the one active player) first, then eliminationOrder reversed - most-recently
  * eliminated ranks higher. No tie handling needed: elimination order is a strict total
  * order (exactly one loser per round), so every player gets a distinct rank.
@@ -222,6 +288,12 @@ function bluffStatePayload(ctx, room, viewerName, bettingView) {
       ? {
           id: room.state.bluff.check.id,
           label: room.state.bluff.check.label,
+          // A player's bluff call: who called it on whom, and - once revealed - who should
+          // lose (the caller if the cards are there, else the player called). Null for the
+          // host's own checks. Only the host ever ends the round.
+          caller: room.state.bluff.check.caller,
+          target: room.state.bluff.check.target,
+          suggestedLoser: room.state.bluff.check.suggestedLoser,
           // What the host called - public, so every phone can lay the face-down cards out.
           ranks: room.state.bluff.check.ranks.slice(),
           remainingMs: Math.max(0, room.state.bluff.check.revealAt - Date.now()),
@@ -235,6 +307,8 @@ function bluffStatePayload(ctx, room, viewerName, bettingView) {
         ? { min: 1, max: Math.max(1, Math.floor(52 / Math.max(1, connectedCount))) }
         : null,
     pendingStartCount: room.state.bluff.pendingStartCount,
+    // Who this viewer can call bluff on right now (null = no "Call bluff" button).
+    bluffTarget: canStartCheck(room) ? bluffTargetOf(room, viewerName) : null,
     canStart:
       room.phase === 'seating' &&
       connectedCount >= BF_MIN_PLAYERS &&
@@ -598,45 +672,39 @@ function registerHandlers(ctx, io, socket) {
     if (socket.data.name !== room.hostName) {
       return callback({ ok: false, error: 'Only the host can check a hand' });
     }
-    if (Object.keys(room.state.bluff.hands).length === 0 || room.state.bluff.lastResult != null) {
-      return callback({ ok: false, error: 'No active round to check' });
-    }
-    if (checkPending(room)) {
-      return callback({ ok: false, error: 'Already checking - wait for the result' });
-    }
-    if (room.state.bluff.editing) {
-      return callback({ ok: false, error: 'Finish editing card counts first' });
-    }
+    const blocked = checkBlockedReason(room);
+    if (blocked) return callback({ ok: false, error: blocked });
 
     const ranks = normalizeCalledRanks(data && data.ranks);
     if (!ranks) return callback({ ok: false, error: 'Pick the cards that were called' });
 
-    room.state.bluff.check = {
-      id: `${room.state.bluff.roundNumber}:${Date.now()}`,
-      ranks,
-      label: calledRanksLabel(ranks),
-      revealAt: Date.now() + BF_CHECK_COUNTDOWN_MS,
-      present: null,
-      perCard: null,
-      strongest: null,
-    };
     callback({ ok: true });
-    broadcastBluff(ctx, roomCode, room);
+    startCheck(ctx, roomCode, room, ranks, null);
+  });
 
-    clearCheckTimer(roomCode);
-    const check = room.state.bluff.check;
-    bfCheckTimers.set(
-      roomCode,
-      setTimeout(() => {
-        bfCheckTimers.delete(roomCode);
-        if (room.state.bluff.check !== check) return;
-        const pooled = Object.values(room.state.bluff.hands).flat();
-        check.present = areRanksPresent(ranks, pooled);
-        check.perCard = calledRanksPresence(ranks, pooled);
-        check.strongest = strongestHand(pooled);
-        broadcastBluff(ctx, roomCode, room);
-      }, BF_CHECK_COUNTDOWN_MS)
-    );
+  // Any player still holding cards calls bluff on the player before them (bluffTargetOf)
+  // and enters the called cards. Same countdown/reveal as the host's check; the reveal
+  // names who should lose, but only the host ends the round (bfSelectLoser).
+  socket.on('bfCallBluff', (data, callback) => {
+    callback = callback || (() => {});
+    const roomCode = socket.data.roomCode;
+    const room = ctx.getRoom(socket);
+    if (!room) return callback({ ok: false, error: 'Not in a room' });
+    if (room.game !== 'bluff' || room.phase !== 'playing') {
+      return callback({ ok: false, error: 'Not playing right now' });
+    }
+    const blocked = checkBlockedReason(room);
+    if (blocked) return callback({ ok: false, error: blocked });
+
+    const caller = socket.data.name;
+    const target = bluffTargetOf(room, caller);
+    if (!target) return callback({ ok: false, error: "You can't call bluff right now" });
+
+    const ranks = normalizeCalledRanks(data && data.ranks);
+    if (!ranks) return callback({ ok: false, error: 'Pick the cards that were called' });
+
+    callback({ ok: true, target });
+    startCheck(ctx, roomCode, room, ranks, { caller, target });
   });
 
   socket.on('bfResetGame', (callback) => {
